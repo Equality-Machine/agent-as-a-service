@@ -1,0 +1,23 @@
+{
+  "name": "agent-as-a-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/cli.mjs serve",
+    "start": "node src/cli.mjs serve",
+    "runner": "node src/cli.mjs runner",
+    "mcp": "node src/mcp-stdio.mjs",
+    "cloud:mcp": "node src/aaas-mcp-stdio.mjs",
+    "cloud:runner": "node src/cloud-runner-cli.mjs",
+    "cloud:enroll": "node src/enroll-runner-cli.mjs",
+    "publish": "node src/publish-cli.mjs",
+    "install:clients": "node scripts/install.mjs",
+    "install:runner": "node scripts/install-runner.mjs",
+    "test": "node --test",
+    "test:e2e": "node --test tests/e2e/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

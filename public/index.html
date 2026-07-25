@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AaaS Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <span>Agent Service</span>
+        </div>
+        <div class="topbar-actions">
+          <span class="status"><i></i> Control plane online</span>
+          <button id="publish-open" class="primary">Publish agent</button>
+        </div>
+      </header>
+
+      <aside class="sidebar">
+        <div class="sidebar-heading">
+          <span>Published agents</span>
+          <button id="refresh-agents" class="icon-button" title="Refresh agents" aria-label="Refresh">↻</button>
+        </div>
+        <div id="agent-list" class="agent-list"></div>
+        <div class="sidebar-footer">
+          <a href="/mcp" id="mcp-link">MCP endpoint</a>
+          <span>Native session forks</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <section class="conversation-header">
+          <div>
+            <div class="eyebrow" id="agent-provider">No agent selected</div>
+            <h1 id="agent-name">Choose a published agent</h1>
+            <p id="agent-description">Each new chat starts from a clean fork of its source session.</p>
+          </div>
+          <div class="conversation-actions">
+            <a id="skill-download" class="secondary hidden" download>Skill</a>
+            <button id="new-chat" class="secondary" disabled>New chat</button>
+            <button id="end-chat" class="danger" disabled>End</button>
+          </div>
+        </section>
+
+        <section id="messages" class="messages" aria-live="polite">
+          <div class="empty-state">
+            <div class="fork-visual" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <h2>One source, clean conversations</h2>
+            <p>Select an agent, then send a message. This chat will continue on its own fork.</p>
+          </div>
+        </section>
+
+        <form id="composer" class="composer">
+          <textarea id="message-input" rows="2" placeholder="Message this agent…" disabled></textarea>
+          <button id="send-message" class="send" type="submit" disabled aria-label="Send message">↑</button>
+        </form>
+        <div class="conversation-meta">
+          <span id="conversation-label">No active conversation</span>
+          <span>Source session remains read-only</span>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="publish-dialog">
+      <form id="publish-form" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <div class="eyebrow">New immutable version</div>
+            <h2>Publish a session</h2>
+          </div>
+          <button type="button" id="publish-close" class="icon-button" aria-label="Close">×</button>
+        </div>
+
+        <label>
+          Agent name
+          <input id="publish-name" required placeholder="Experienced research partner" />
+        </label>
+        <label>
+          Description
+          <input id="publish-description" placeholder="What this long-running session is good at" />
+        </label>
+
+        <div class="field-row">
+          <label>
+            Provider
+            <select id="publish-provider">
+              <option value="codex">Codex</option>
+              <option value="claude">Claude</option>
+            </select>
+          </label>
+          <label>
+            Execution
+            <select id="publish-placement">
+              <option value="local">This machine</option>
+              <option value="remote">Remote runner</option>
+            </select>
+          </label>
+        </div>
+
+        <label id="runner-url-field" class="hidden">
+          Runner URL
+          <input id="publish-runner-url" placeholder="https://runner.example.com" />
+        </label>
+        <label>
+          Admin token <span class="optional">(only when configured)</span>
+          <input id="publish-admin-token" type="password" autocomplete="off" placeholder="AAAS_ADMIN_TOKEN" />
+        </label>
+
+        <div class="session-picker-header">
+          <span>Source session</span>
+          <button type="button" id="refresh-sessions" class="text-button">Refresh</button>
+        </div>
+        <div id="session-list" class="session-list">
+          <div class="loading-row">Loading sessions…</div>
+        </div>
+        <input id="selected-session" type="hidden" />
+
+        <div id="publish-error" class="form-error hidden"></div>
+        <div class="dialog-footer">
+          <button type="button" id="publish-cancel" class="secondary">Cancel</button>
+          <button type="submit" class="primary">Publish immutable version</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
