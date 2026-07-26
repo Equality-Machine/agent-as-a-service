@@ -62,6 +62,26 @@ async function verifyRealFork(provider, runtime) {
     assert.ok(body.conversation_id);
     const internal = await app.service.getBranch(body.conversation_id);
     assert.notEqual(internal.runtimeSessionId, source.sessionId);
+
+    const continuationMarker = `${marker}-CONTINUED`;
+    const continuationResponse = await fetch(`${baseUrl}/v1/responses`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        conversation: body.conversation_id,
+        input: `Reply with exactly ${continuationMarker}. Do not use tools.`,
+      }),
+    });
+    const continuationText = await continuationResponse.text();
+    assert.equal(continuationResponse.status, 201, continuationText);
+    const continuation = JSON.parse(continuationText);
+    assert.equal(continuation.conversation_id, body.conversation_id);
+    assert.match(
+      continuation.output[0].text,
+      new RegExp(continuationMarker),
+    );
+    const continuedInternal = await app.service.getBranch(body.conversation_id);
+    assert.equal(continuedInternal.runtimeSessionId, internal.runtimeSessionId);
     assert.equal(await runtime.fingerprintSource(source), agent.source_digest);
     return {
       provider,
@@ -69,6 +89,7 @@ async function verifyRealFork(provider, runtime) {
       branchSessionId: internal.runtimeSessionId,
       conversationId: body.conversation_id,
       marker,
+      continuationMarker,
     };
   } finally {
     await app.close();

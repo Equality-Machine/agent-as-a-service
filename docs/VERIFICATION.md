@@ -107,14 +107,16 @@ The latest real-provider test selected a quiescent Codex history, published it,
 and created a distinct runtime branch:
 
 ```text
-publisher session: 019f7952-edcd-7b51-a30f-643c03025510
-consumer fork:     019f9e4e-ba92-7b40-8982-fe43f361ca51
-Conversation:      76f8aed3-a96e-45fb-8fd9-9ff82b19a81b
-marker:            AAAS-CODEX-1785067387135
+publisher session: 019f8ff3-b579-74b1-982a-ebd0db85845e
+consumer fork:     019f9e56-9982-7d73-9372-c07d888065f5
+Conversation:      73814102-3dca-4466-8666-83362a28d091
+marker:            AAAS-CODEX-1785067903206
+continuation:      AAAS-CODEX-1785067903206-CONTINUED
 ```
 
-The test asserts that the source fingerprint after the response equals the
-fingerprint captured in the immutable AgentVersion.
+The test asserts that the continuation reused the same Conversation and
+Provider child Session, and that the source fingerprint after both responses
+equals the fingerprint captured in the immutable AgentVersion.
 
 A separate production MCP isolation check hashed the reference Agent's original
 publisher Session immediately before `agent_start` and again after the response
@@ -155,22 +157,29 @@ Coverage includes:
 surface. Both cloud tests passed. `cd cloud && npm run lint` also passed with no
 warnings or errors.
 
-## Claude live limitation
+## Claude live acceptance
 
 The Claude adapter and process fixtures pass, including immutable-template
-materialization, first-turn `--fork-session`, and child-only continuation. A
-real Claude E2E attempt reached the installed CLI, but the local authentication
-state is contradictory: `claude auth status` reports `loggedIn: true`, while an
 actual prompt returns:
 
 ```text
 401 OAuth access token has been revoked
 ```
 
-After `claude auth login`, rerun:
+The accepted alternative was the user-authorized Alibaba Cloud Model Studio
+Anthropic-compatible endpoint. Credentials were passed only to a temporary,
+no-echo process environment and were not written to settings, state, logs, or
+the repository. The installed Claude CLI first returned
+`AAAS-BAILIAN-CLAUDE-CONNECTED`, then the real history test passed:
 
-```bash
-AAAS_REAL_E2E=1 node --test tests/e2e/real-runtimes.test.mjs
+```text
+provider: Claude Code through qwen3.7-max
+publisher session: d577b1c2-5b54-4cd1-8958-bdfaf2769a3a
+consumer fork:     024fcc5b-39fb-470e-9c41-95241102df99
+Conversation:      e2a8cf66-b1bc-4ad2-b69b-a1bea8c02cf7
+marker:            AAAS-CLAUDE-1785067925427
+continuation:      AAAS-CLAUDE-1785067925427-CONTINUED
 ```
 
-No alternative API key was persisted by this project.
+The second response reused the same Conversation and child Session, while the
+publisher source fingerprint remained unchanged.

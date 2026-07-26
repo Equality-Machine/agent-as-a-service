@@ -34,6 +34,19 @@ Codex 发布时使用 `CODEX_THREAD_ID` 精确定位当前任务；Claude Code �
 项目的 Session。若无法唯一定位，Skill 必须让用户明确提供 Session ID，不会
 静默发布另一条对话。
 
+Claude Runner 可以使用现有 Claude 登录，也可以通过兼容 Anthropic Messages
+协议的模型服务运行。以百炼按量模式为例，应由进程 Secret 注入以下变量，不要
+把 Key 写入仓库、镜像或 Skill：
+
+```bash
+export ANTHROPIC_BASE_URL=https://dashscope.aliyuncs.com/apps/anthropic
+export ANTHROPIC_AUTH_TOKEN="$DASHSCOPE_API_KEY"
+export ANTHROPIC_MODEL=qwen3.7-max
+```
+
+本项目已用临时环境完成真实 Claude 历史的 Fork、Continuation 和来源摘要不变
+验收；详见验证文档。
+
 ### 2. 让另一位用户调用
 
 另一位用户安装同一个 Skill/MCP 后，在自己的 Codex 或 Claude Code 里说：
