@@ -160,7 +160,9 @@ warnings or errors.
 ## Claude live acceptance
 
 The Claude adapter and process fixtures pass, including immutable-template
-actual prompt returns:
+materialization, first-turn `--fork-session`, and child-only continuation. The
+local first-party authentication is stale: `claude auth status` reports
+`loggedIn: true`, while an actual prompt returns:
 
 ```text
 401 OAuth access token has been revoked
