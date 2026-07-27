@@ -213,6 +213,21 @@ Runner hot enrollment:
   same Runner process reloads identity and polls successfully
 ```
 
+The broken-Codex fallback was also exercised on the reporting macOS machine.
+The NVM `codex` wrapper reproduced `ENOENT` because its native
+`codex-darwin-arm64` payload was missing, while the ChatGPT app binary returned
+`codex-cli 0.146.0-alpha.3.1`. After commit `0e5bbf0` was pushed, the unchanged
+public command completed as a consumer:
+
+```text
+npx -y Equality-Machine/agent-as-a-service
+Codex MCP: enabled
+Claude MCP: connected
+Codex Skill: installed
+Claude Skill: installed
+new Runner created: no
+```
+
 ## Automated suites
 
 `npm test` on 2026-07-27:
