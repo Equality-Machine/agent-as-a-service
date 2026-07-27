@@ -207,8 +207,8 @@ Runner hot enrollment:
 `npm test` on 2026-07-27:
 
 ```text
-29 tests
-25 passed
+30 tests
+26 passed
 4 skipped (2 live-provider + production Runner + post-publish installer)
 0 failed
 ```
@@ -233,6 +233,8 @@ Coverage includes:
   memory configuration while retaining authentication;
 - Source Snapshot reload after claim closes the publish/claim race;
 - lease stage heartbeat and active-runtime cancellation propagation.
+- serialized heartbeat draining before terminal Job submission, preventing
+  post-completion lease requests.
 
 The real isolated Codex test also ran separately after the change:
 

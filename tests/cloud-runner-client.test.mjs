@@ -247,3 +247,61 @@ test("runner aborts an active runtime when the lease reports cancellation", asyn
   assert.equal(finished[0].cancelled, true);
   assert.equal(finished[0].error, "Cancelled by user");
 });
+
+test("runner stops and drains lease heartbeats before completing a job", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "aaas-cloud-runner-heartbeat-stop-"));
+  const snapshotPath = path.join(root, "snapshot.jsonl");
+  await writeFile(snapshotPath, '{"immutable":true}\n');
+  const digest = await fingerprintFile(snapshotPath);
+  const state = new CloudState(root);
+  await state.ensureRunner("local");
+  await state.putSource({
+    handle: "src_heartbeat",
+    provider: "codex",
+    originalSessionId: "publisher-source",
+    snapshotPath,
+    cwd: root,
+    digest,
+  });
+  let finished = false;
+  let heartbeatAfterFinish = 0;
+  const cloudClient = {
+    async nextJob() {
+      return {
+        job: {
+          id: "job-heartbeat",
+          sourceHandle: "src_heartbeat",
+          sourceDigest: digest,
+          input: "finish cleanly",
+          runtimeSessionId: null,
+          leaseToken: "lease-heartbeat",
+        },
+      };
+    },
+    async heartbeatJob() {
+      await new Promise((resolve) => setTimeout(resolve, 3));
+      if (finished) heartbeatAfterFinish += 1;
+      return { cancelRequested: false };
+    },
+    async finishJob() {
+      finished = true;
+    },
+  };
+  const runner = new CloudRunner({
+    dataDir: root,
+    cloudUrl: "https://aaas.example",
+    cloudClient,
+    heartbeatMs: 1,
+    runtimes: {
+      codex: {
+        async fork() {
+          await new Promise((resolve) => setTimeout(resolve, 8));
+          return { runtimeSessionId: "consumer-heartbeat", text: "done" };
+        },
+      },
+    },
+  });
+
+  assert.equal((await runner.runOnce()).status, "completed");
+  assert.equal(heartbeatAfterFinish, 0);
+});

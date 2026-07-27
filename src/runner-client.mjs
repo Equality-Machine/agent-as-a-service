@@ -73,12 +73,14 @@ export class CloudRunner {
     const controller = new AbortController();
     let stage = "loading_source";
     let heartbeatChain = Promise.resolve();
-    const heartbeat = async () => {
+    let heartbeatsStopped = false;
+    let heartbeatTimer = null;
+    const heartbeat = async (heartbeatStage) => {
       if (typeof this.cloud.heartbeatJob !== "function") return;
       const result = await this.cloud.heartbeatJob(runner.id, runner.token, {
         jobId: job.id,
         leaseToken: job.leaseToken,
-        stage,
+        stage: heartbeatStage,
       });
       if (result?.cancelRequested && !controller.signal.aborted) {
         const error = new Error("Cancelled by user");
@@ -86,19 +88,30 @@ export class CloudRunner {
         controller.abort(error);
       }
     };
+    const enqueueHeartbeat = (heartbeatStage) => {
+      if (heartbeatsStopped) return heartbeatChain;
+      heartbeatChain = heartbeatChain
+        .then(() => heartbeat(heartbeatStage))
+        .catch((error) => {
+          if (!controller.signal.aborted) controller.abort(error);
+        });
+      return heartbeatChain;
+    };
     const setStage = async (nextStage) => {
       stage = nextStage;
-      await heartbeat();
+      await enqueueHeartbeat(nextStage);
       if (controller.signal.aborted) throw controller.signal.reason;
     };
-    const heartbeatTimer =
+    const stopHeartbeats = async () => {
+      if (heartbeatsStopped) return;
+      heartbeatsStopped = true;
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      await heartbeatChain;
+    };
+    heartbeatTimer =
       typeof this.cloud.heartbeatJob === "function"
         ? setInterval(() => {
-            heartbeatChain = heartbeatChain
-              .then(heartbeat)
-              .catch((error) => {
-                if (!controller.signal.aborted) controller.abort(error);
-              });
+            void enqueueHeartbeat(stage);
           }, this.heartbeatMs)
         : null;
     heartbeatTimer?.unref?.();
@@ -150,6 +163,8 @@ export class CloudRunner {
         throw new Error("Runtime modified the immutable source snapshot");
       }
       await setStage("finalizing");
+      await stopHeartbeats();
+      if (controller.signal.aborted) throw controller.signal.reason;
       await this.cloud.finishJob(runner.id, runner.token, {
         jobId: job.id,
         leaseToken: job.leaseToken,
@@ -159,6 +174,7 @@ export class CloudRunner {
       return { status: "completed", jobId: job.id };
     } catch (error) {
       const cancelled = error?.code === "JOB_CANCELLED";
+      await stopHeartbeats();
       await this.cloud.finishJob(runner.id, runner.token, {
         jobId: job.id,
         leaseToken: job.leaseToken,
@@ -169,8 +185,7 @@ export class CloudRunner {
         ? { status: "cancelled", jobId: job.id }
         : { status: "failed", jobId: job.id, error: error.message };
     } finally {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      await heartbeatChain;
+      await stopHeartbeats();
     }
   }
 
