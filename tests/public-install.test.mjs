@@ -68,7 +68,67 @@ exit 0
       /agent-as-a-service/,
     );
     assert.equal(
-      (await lstat(path.join(home, ".codex", "skills", "aaas"))).isSymbolicLink(),
+      (await lstat(path.join(home, ".codex", "skills", "aaas"))).isDirectory(),
+      true,
+    );
+    await assert.rejects(
+      () => lstat(path.join(home, ".aaas", "cloud-state.json")),
+      /ENOENT/,
+    );
+  },
+);
+
+test(
+  "public GitHub package installs a consumer directly with npx",
+  { skip: !enabled },
+  async () => {
+    const home = await mkdtemp(path.join(tmpdir(), "aaas-public-npx-"));
+    const fakeCodex = path.join(home, "codex");
+    const installDir = path.join(home, "runtime");
+    await writeFile(
+      fakeCodex,
+      `#!/bin/sh
+if [ "$1" = "mcp" ] && [ "$2" = "get" ]; then
+  exit 1
+fi
+exit 0
+`,
+    );
+    await chmod(fakeCodex, 0o755);
+
+    const result = spawnSync(
+      "npx",
+      [
+        "--yes",
+        "github:Equality-Machine/agent-as-a-service",
+        "--install-dir",
+        installDir,
+        "--client",
+        "codex",
+        "--data-dir",
+        path.join(home, ".aaas"),
+      ],
+      {
+        cwd: home,
+        env: {
+          ...process.env,
+          HOME: home,
+          AAAS_HOME: home,
+          AAAS_CODEX_BIN: fakeCodex,
+        },
+        encoding: "utf8",
+        timeout: 120_000,
+      },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /role consumer/i);
+    assert.equal(
+      (await lstat(path.join(home, ".codex", "skills", "aaas"))).isDirectory(),
+      true,
+    );
+    assert.equal(
+      (await lstat(path.join(installDir, "src", "aaas-mcp-stdio.mjs"))).isFile(),
       true,
     );
     await assert.rejects(

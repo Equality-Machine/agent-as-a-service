@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { accessSync, constants } from "node:fs";
-import { mkdir, rm, symlink } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -91,7 +91,7 @@ function selectedClients(choice, binaries) {
 async function installSkill(target, source) {
   await mkdir(path.dirname(target), { recursive: true });
   await rm(target, { recursive: true, force: true });
-  await symlink(source, target, "dir");
+  await cp(source, target, { recursive: true });
 }
 
 function mcpEnvironment(cloudUrl, home, dataDir) {

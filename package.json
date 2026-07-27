@@ -1,8 +1,29 @@
 {
-  "name": "agent-as-a-service",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@efflora/aaas",
+  "version": "0.2.0",
+  "description": "Publish Codex and Claude sessions as fork-safe Agent services.",
+  "private": false,
   "type": "module",
+  "bin": {
+    "aaas": "scripts/aaas.mjs"
+  },
+  "files": [
+    "install.sh",
+    "scripts",
+    "skills",
+    "src",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Equality-Machine/agent-as-a-service.git"
+  },
+  "homepage": "https://github.com/Equality-Machine/agent-as-a-service#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "dev": "node src/cli.mjs serve",
     "start": "node src/cli.mjs serve",

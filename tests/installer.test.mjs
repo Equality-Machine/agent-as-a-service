@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, lstat, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -89,10 +96,148 @@ printf '%s\\n' "$*" >> "$AAAS_TEST_LOG"
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /role consumer/i);
   assert.equal(
-    (await lstat(path.join(home, ".codex", "skills", "aaas"))).isSymbolicLink(),
+    (await lstat(path.join(home, ".codex", "skills", "aaas"))).isDirectory(),
     true,
   );
   assert.match(await readFile(log, "utf8"), /mcp add aaas/);
+  await assert.rejects(
+    () => lstat(path.join(home, ".aaas", "cloud-state.json")),
+    /ENOENT/,
+  );
+});
+
+test("the package CLI installs a stable Skill and MCP without a runner by default", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "aaas-npx-home-"));
+  const installDir = path.join(home, ".local", "share", "efflora-aaas");
+  const fakeCodex = path.join(home, "codex");
+  const log = path.join(home, "codex.log");
+  await writeFile(
+    fakeCodex,
+    `#!/bin/sh
+if [ "$1" = "mcp" ] && [ "$2" = "get" ]; then
+  exit 1
+fi
+printf '%s\\n' "$*" >> "$AAAS_TEST_LOG"
+`,
+  );
+  await chmod(fakeCodex, 0o755);
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(root, "scripts", "aaas.mjs"),
+      "--install-dir",
+      installDir,
+      "--client",
+      "codex",
+      "--cloud-url",
+      "https://aaas.example",
+      "--data-dir",
+      path.join(home, ".aaas"),
+    ],
+    {
+      cwd: root,
+      env: {
+        ...process.env,
+        HOME: home,
+        AAAS_HOME: home,
+        AAAS_CODEX_BIN: fakeCodex,
+        AAAS_TEST_LOG: log,
+      },
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /role consumer/i);
+  assert.equal(
+    (await lstat(path.join(home, ".codex", "skills", "aaas"))).isDirectory(),
+    true,
+  );
+  assert.equal(
+    (await lstat(path.join(installDir, "src", "aaas-mcp-stdio.mjs"))).isFile(),
+    true,
+  );
+  assert.match(
+    await readFile(log, "utf8"),
+    new RegExp(
+      `mcp add aaas.*${installDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\/src\\/aaas-mcp-stdio\\.mjs`,
+    ),
+  );
+  await assert.rejects(
+    () => lstat(path.join(home, ".aaas", "cloud-state.json")),
+    /ENOENT/,
+  );
+});
+
+test("the packed npm artifact is directly executable with npx", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "aaas-packed-npx-home-"));
+  const packDir = path.join(home, "package");
+  const installDir = path.join(home, "runtime");
+  const fakeCodex = path.join(home, "codex");
+  await mkdir(packDir, { recursive: true });
+  await writeFile(
+    fakeCodex,
+    `#!/bin/sh
+if [ "$1" = "mcp" ] && [ "$2" = "get" ]; then
+  exit 1
+fi
+exit 0
+`,
+  );
+  await chmod(fakeCodex, 0o755);
+
+  const packed = spawnSync(
+    "npm",
+    ["pack", "--json", "--pack-destination", packDir],
+    {
+      cwd: root,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(packed.status, 0, packed.stderr);
+  const [{ filename }] = JSON.parse(packed.stdout);
+  const tarball = path.join(packDir, filename);
+
+  const result = spawnSync(
+    "npx",
+    [
+      "--yes",
+      "--package",
+      tarball,
+      "aaas",
+      "--install-dir",
+      installDir,
+      "--client",
+      "codex",
+      "--cloud-url",
+      "https://aaas.example",
+      "--data-dir",
+      path.join(home, ".aaas"),
+    ],
+    {
+      cwd: home,
+      env: {
+        ...process.env,
+        HOME: home,
+        AAAS_HOME: home,
+        AAAS_CODEX_BIN: fakeCodex,
+      },
+      encoding: "utf8",
+      timeout: 120_000,
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /role consumer/i);
+  assert.equal(
+    (await lstat(path.join(home, ".codex", "skills", "aaas"))).isDirectory(),
+    true,
+  );
+  assert.equal(
+    (await lstat(path.join(installDir, "src", "aaas-mcp-stdio.mjs"))).isFile(),
+    true,
+  );
   await assert.rejects(
     () => lstat(path.join(home, ".aaas", "cloud-state.json")),
     /ENOENT/,

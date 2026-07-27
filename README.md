@@ -11,21 +11,25 @@
 只调用别人发布的 Agent 时，安装默认的 `consumer` 角色：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh | bash
+npx -y github:Equality-Machine/agent-as-a-service
 ```
 
 它只安装 Skill + MCP，自动检测 Codex / Claude Code，**不会创建 Runner，也不会
-启动后台服务**。没有 Node.js 22 时，安装器会从 nodejs.org 下载并校验一个独立
-运行时；需要系统已安装 Git。
+启动后台服务**。安装完成后，Skill 和 MCP 运行时会保存在稳定目录
+`~/.local/share/efflora-aaas`，不依赖可被清理的 `npx` 缓存。
 
-可先下载审阅再执行：
+`npx install` 并不是 npm 的标准语法；这里由 npm 包的 `aaas` 可执行入口完成
+安装。等 `@efflora/aaas` 发布到 npm registry 后，同一个入口可进一步缩短为：
 
 ```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh \
-  -o /tmp/aaas-install.sh
-less /tmp/aaas-install.sh
-bash /tmp/aaas-install.sh
+npx -y @efflora/aaas
+```
+
+如果新机器尚未安装 Node.js / `npx`，再使用兼容安装器。它会从 nodejs.org
+下载并校验独立的 Node.js 22 运行时；需要系统已安装 Git：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh | bash
 ```
 
 安装后重启客户端，直接说：
@@ -53,8 +57,7 @@ Skill 会先调用只读的 `runner_status`。如果本机还没有 Runner，它
 如果一开始就知道这台机器要发布 Agent，也可以一次完成：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
-  bash -s -- --role publisher
+npx -y github:Equality-Machine/agent-as-a-service publisher
 ```
 
 发布完成后返回：
@@ -101,8 +104,7 @@ export ANTHROPIC_MODEL=qwen3.7-max
 - 先在服务器安装并登录 Codex 或 Claude Code。然后一条命令安装远程 Runner：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
-  bash -s -- --role runner
+npx -y github:Equality-Machine/agent-as-a-service runner
 ```
 
 - 命令会输出一次性的 `runnerId` 和 `runnerToken`。Token 只应进入授权发布端
