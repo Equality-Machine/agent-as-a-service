@@ -192,13 +192,14 @@ unchanged: yes
 
 ```text
 consumer:
-  Skill symlink: created
+  stable runtime copy: created
+  Skill directory copy: created
   MCP registration: created
   cloud-state.json: absent
   Runner service: absent
 
 publisher --no-start:
-  Skill symlink: created
+  Skill directory copy: created
   local Runner identity: created
   macOS LaunchAgent file: created
   background process started: intentionally disabled for isolated test
@@ -217,9 +218,9 @@ Runner hot enrollment:
 `npm test` on 2026-07-27:
 
 ```text
-30 tests
-26 passed
-4 skipped (2 live-provider + production Runner + post-publish installer)
+33 tests
+28 passed
+5 skipped (2 live-provider + production Runner + 2 post-publish installers)
 0 failed
 ```
 
@@ -245,6 +246,8 @@ Coverage includes:
 - lease stage heartbeat and active-runtime cancellation propagation.
 - serialized heartbeat draining before terminal Job submission, preventing
   post-completion lease requests.
+- npm package packing and a real `npx` execution from the produced tarball;
+- stable Skill/MCP runtime materialization outside the disposable `npx` cache.
 
 The real isolated Codex test also ran separately after the change:
 
@@ -261,10 +264,19 @@ against `agt_14b2806758a042db`. It completed `agent_start → agent_continue →
 agent_end` in one Conversation and confirmed the immutable source digest was
 unchanged (1 passed, 0 failed).
 
-After the repository became public, the gated distribution test downloaded
-`install.sh` from GitHub Raw, cloned `Equality-Machine/agent-as-a-service` into
-an isolated temporary HOME, registered a fake Codex client as a consumer, and
-confirmed that no Runner state was created (1 passed, 0 failed).
+After commit `9328265` was pushed to the public repository, the gated
+distribution suite ran both supported paths in separate temporary HOME
+directories:
+
+```text
+GitHub Raw install.sh: passed
+npx -y github:Equality-Machine/agent-as-a-service: passed
+Runner state created by either consumer install: no
+```
+
+The `npx` path fetched the public GitHub package, materialized the runtime,
+copied the Skill, registered a fake Codex client, and completed with 2 passed,
+0 failed across the public distribution suite.
 
 `cd cloud && npm test` builds the Sites worker and validates the public UI/API
 surface. Both cloud tests passed. `cd cloud && npm run lint` also passed with no
