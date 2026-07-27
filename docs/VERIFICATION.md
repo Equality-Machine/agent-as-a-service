@@ -55,6 +55,16 @@ could retain the removed in-process Runner. The new MCP code never polls for
 Jobs; only the LaunchAgent Runner does. A post-acceptance process check found no
 AaaS MCP child created by the isolated Codex runtime.
 
+After serializing and draining lease heartbeats, the LaunchAgent was restarted
+again and the production two-turn test passed:
+
+```text
+Conversation: cnv_156ae84253db4efb
+Marker: AAAS-INSTALLER-E2E-1785159730530
+Source digest unchanged: true
+Worker error events during the acceptance window: 0
+```
+
 ## Historical version-4 browser acceptance
 
 Version 4 was built, linted, pushed to the Sites source repository, saved from
