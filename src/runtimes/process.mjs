@@ -3,6 +3,13 @@ import { spawn } from "node:child_process";
 export function runProcess(executable, args, options = {}) {
   const timeoutMs = options.timeoutMs ?? 300_000;
   const maxOutputBytes = options.maxOutputBytes ?? 10_000_000;
+  if (options.signal?.aborted) {
+    return Promise.reject(
+      options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new Error("Process aborted"),
+    );
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
       cwd: options.cwd,
@@ -18,11 +25,21 @@ export function runProcess(executable, args, options = {}) {
       fail(new Error(`Process timed out after ${timeoutMs}ms`));
     }, timeoutMs);
     timer.unref();
+    const abort = () => {
+      child.kill("SIGTERM");
+      fail(
+        options.signal.reason instanceof Error
+          ? options.signal.reason
+          : new Error("Process aborted"),
+      );
+    };
+    options.signal?.addEventListener("abort", abort, { once: true });
 
     function fail(error) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
       reject(error);
     }
 
@@ -43,6 +60,7 @@ export function runProcess(executable, args, options = {}) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
       const result = {
         code,
         signal,

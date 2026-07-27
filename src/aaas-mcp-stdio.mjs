@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { CloudClient } from "./cloud-client.mjs";
 import { CloudState } from "./cloud-state.mjs";
 import { Publisher } from "./publisher.mjs";
-import { CloudRunner } from "./runner-client.mjs";
 import {
   getRunnerServiceStatus,
   installRunnerService,
@@ -25,16 +24,7 @@ const publisher = new Publisher({
   cloudUrl,
   publisherToken: process.env.AAAS_PUBLISH_TOKEN ?? null,
 });
-const runner = new CloudRunner({ dataDir, cloudUrl });
 const runnerState = new CloudState(dataDir);
-const runnerAbort = new AbortController();
-let runnerStarted = false;
-
-function startRunner() {
-  if (runnerStarted) return;
-  runnerStarted = true;
-  void runner.run(runnerAbort.signal);
-}
 
 const tools = [
   {
@@ -205,7 +195,6 @@ async function callTool(name, args) {
       runnerId: args.runner_id,
       runnerToken: args.runner_token,
     });
-    if (agent.executionMode === "local") startRunner();
     return {
       agentId: agent.id,
       versionId: agent.versionId,
@@ -289,5 +278,3 @@ for await (const line of input) {
     process.stdout.write(`${JSON.stringify(failure(request.id, error))}\n`);
   }
 }
-
-runnerAbort.abort();

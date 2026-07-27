@@ -93,6 +93,8 @@ export ANTHROPIC_MODEL=qwen3.7-max
 - Source Snapshot、本地文件、Provider 登录态都留在发布者机器。
 - Runner 只建立出站 HTTPS 连接，不需要路由器端口映射或公网入站端口。
 - 发布者机器离线时，Agent 暂时不可用。
+- 发布工具只冻结并登记 AgentVersion，绝不在发布会话里临时启动 Runner；只有
+  LaunchAgent / systemd / 容器中的常驻 Runner 可以领取 Job。
 
 ### `cloud`
 
@@ -153,6 +155,21 @@ Source Session (private, mutable publisher history)
 - `Conversation` 是某位调用者的一次连续使用。
 - Provider 的 child session ID 永不返回给消费者。
 - Codex Fork 后会清掉复制来的 active Goal，避免自动继续执行发布者任务。
+- Codex Runner 使用独立 `CODEX_HOME`，只复用登录凭据，不继承发布者的
+  `config.toml`、MCP、Apps、插件、Hooks、Skills 或记忆配置，避免递归加载
+  AaaS 本身。
+- 常驻 Runner 在每次领取 Job 后重新加载 Source Snapshot，因此无需重启即可
+  执行刚发布的 AgentVersion。
+
+## Job 状态与取消
+
+控制面把 `queued`、`claimed`、`loading_source`、`starting_runtime`、
+`running`、`finalizing` 和终态分开返回。Runner 每 10 秒续期一次 45 秒租约；
+租约丢失的任务会重新排队，取消中的任务会终止 Provider 子进程并进入
+`cancelled`。网页会显示当前阶段和 Runner 在线状态，不再把运行时超时误报为
+Runner 离线。Provider 默认运行时上限为 5 分钟，可用
+`AAAS_RUNTIME_TIMEOUT_MS` 调整；调用端等待上限更长，因此能收到准确的运行时
+超时错误。
 
 ## MCP 工具
 
@@ -185,6 +202,7 @@ Conversation、MCP 生命周期、Job/Lease、本地 Runner、加密 Cloud Capsu
 - Snapshot、runner state 和 token 文件使用 `0600`。
 - 默认 Codex 是 read-only + no-network；Claude 默认只允许
   `Read,Grep,Glob`。
+- Codex 的消费分支运行在隔离配置目录中；Publisher MCP 不具备 Job 消费职责。
 - 文件写入、浏览器、邮件、数据库等副作用尚未按 Conversation 自动隔离；若
   开放这些工具，必须为每个 Conversation 增加 worktree/container、独立凭据
   与审批策略。

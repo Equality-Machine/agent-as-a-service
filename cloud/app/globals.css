@@ -456,6 +456,60 @@ button {
   color: var(--muted);
 }
 
+.job-progress {
+  width: min(390px, 88%);
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 4px 12px 12px 12px;
+  background: var(--paper);
+}
+
+.job-progress > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-progress strong {
+  font-size: 13px;
+}
+
+.job-progress small {
+  display: block;
+  margin: 5px 0 9px 16px;
+  color: var(--muted);
+  font-family: var(--font-geist-mono);
+  font-size: 9px;
+}
+
+.job-progress button {
+  margin-left: 16px;
+  padding: 5px 8px;
+  border: 1px solid #c8a89d;
+  border-radius: 6px;
+  color: #913f2b;
+  background: #fff8f4;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.job-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 4px rgba(255, 93, 29, 0.12);
+}
+
+.job-dot.completed {
+  background: var(--green);
+}
+
+.job-dot.failed,
+.job-dot.cancelled {
+  background: #a33025;
+}
+
 .composer {
   margin: 0 18px;
   padding: 8px 8px 8px 14px;

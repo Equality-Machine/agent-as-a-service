@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,12 +17,31 @@ test("Codex runtime uses app-server thread/fork then thread/resume", async () =>
   const executable = path.join(fixtureDir, "fake-codex.mjs");
   const traceFile = path.join(fixtureDir, "trace.jsonl");
   const sourceFile = path.join(fixtureDir, "source.jsonl");
+  const sourceCodexHome = path.join(fixtureDir, "user-codex-home");
+  const isolatedCodexHome = path.join(fixtureDir, "runner-codex-home");
+  await mkdir(sourceCodexHome, { recursive: true });
+  await writeFile(path.join(sourceCodexHome, "auth.json"), "fixture-auth");
+  await writeFile(
+    path.join(sourceCodexHome, "config.toml"),
+    '[mcp_servers.aaas]\ncommand = "recursive-aaas"\n',
+  );
   await writeFile(sourceFile, '{"source":"immutable"}\n');
   await writeFile(
     executable,
     `#!/usr/bin/env node
 import readline from "node:readline";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+appendFileSync(process.env.AAAS_TRACE, JSON.stringify({
+  process: {
+    argv: process.argv.slice(2),
+    codexHome: process.env.CODEX_HOME,
+    inheritedConfig: existsSync(path.join(process.env.CODEX_HOME ?? "", "config.toml")),
+    auth: existsSync(path.join(process.env.CODEX_HOME ?? "", "auth.json"))
+      ? readFileSync(path.join(process.env.CODEX_HOME, "auth.json"), "utf8")
+      : null
+  }
+}) + "\\n");
 const rl = readline.createInterface({ input: process.stdin });
 for await (const line of rl) {
   const message = JSON.parse(line);
@@ -50,6 +75,8 @@ for await (const line of rl) {
     executable,
     executableArgs: ["app-server", "--stdio"],
     env: { ...process.env, AAAS_TRACE: traceFile },
+    codexHome: isolatedCodexHome,
+    sourceCodexHome,
   });
   const source = {
     sessionId: "codex-source",
@@ -72,6 +99,15 @@ for await (const line of rl) {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
+  const processStarts = calls.filter((call) => call.process);
+  assert.equal(processStarts.length, 2);
+  for (const start of processStarts) {
+    assert.equal(start.process.codexHome, isolatedCodexHome);
+    assert.equal(start.process.inheritedConfig, false);
+    assert.equal(start.process.auth, "fixture-auth");
+    assert.ok(start.process.argv.includes("apps"));
+    assert.ok(start.process.argv.includes("plugins"));
+  }
   assert.equal(calls.filter((call) => call.method === "thread/fork").length, 1);
   const forkCall = calls.find((call) => call.method === "thread/fork");
   assert.equal(forkCall.params.threadId, "codex-source");

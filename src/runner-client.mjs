@@ -28,10 +28,20 @@ export class CloudRunner {
     runtimes = null,
     pollMs = 1_000,
     cloudClient = null,
+    heartbeatMs = 10_000,
   }) {
     this.state = new CloudState(dataDir);
     this.cloud = cloudClient ?? new CloudClient({ baseUrl: cloudUrl });
     this.pollMs = pollMs;
+    this.heartbeatMs = heartbeatMs;
+    const configuredRuntimeTimeoutMs = Number(
+      process.env.AAAS_RUNTIME_TIMEOUT_MS ?? 300_000,
+    );
+    const runtimeTimeoutMs =
+      Number.isFinite(configuredRuntimeTimeoutMs) &&
+      configuredRuntimeTimeoutMs > 0
+        ? configuredRuntimeTimeoutMs
+        : 300_000;
     this.runtimes =
       runtimes ??
       {
@@ -39,11 +49,16 @@ export class CloudRunner {
           executable:
             process.env.AAAS_CODEX_BIN ??
             "/Applications/ChatGPT.app/Contents/Resources/codex",
+          codexHome:
+            process.env.AAAS_CODEX_HOME ??
+            path.join(dataDir, "runtime", "codex-home"),
+          timeoutMs: runtimeTimeoutMs,
         }),
         claude: new ClaudeRuntime({
           executable: process.env.AAAS_CLAUDE_BIN ?? "claude",
           allowedTools:
             process.env.AAAS_CLAUDE_ALLOWED_TOOLS ?? "Read,Grep,Glob",
+          timeoutMs: runtimeTimeoutMs,
         }),
       };
   }
@@ -55,7 +70,45 @@ export class CloudRunner {
     const payload = await this.cloud.nextJob(runner.id, runner.token);
     if (!payload?.job) return { status: "idle" };
     const job = payload.job;
+    const controller = new AbortController();
+    let stage = "loading_source";
+    let heartbeatChain = Promise.resolve();
+    const heartbeat = async () => {
+      if (typeof this.cloud.heartbeatJob !== "function") return;
+      const result = await this.cloud.heartbeatJob(runner.id, runner.token, {
+        jobId: job.id,
+        leaseToken: job.leaseToken,
+        stage,
+      });
+      if (result?.cancelRequested && !controller.signal.aborted) {
+        const error = new Error("Cancelled by user");
+        error.code = "JOB_CANCELLED";
+        controller.abort(error);
+      }
+    };
+    const setStage = async (nextStage) => {
+      stage = nextStage;
+      await heartbeat();
+      if (controller.signal.aborted) throw controller.signal.reason;
+    };
+    const heartbeatTimer =
+      typeof this.cloud.heartbeatJob === "function"
+        ? setInterval(() => {
+            heartbeatChain = heartbeatChain
+              .then(heartbeat)
+              .catch((error) => {
+                if (!controller.signal.aborted) controller.abort(error);
+              });
+          }, this.heartbeatMs)
+        : null;
+    heartbeatTimer?.unref?.();
+
     try {
+      await setStage("loading_source");
+      // Publishing and execution are separate processes. Reload after the
+      // claim so a snapshot committed between the poll and the lease is
+      // immediately visible to this long-running Runner.
+      await this.state.reload();
       let source = await this.state.getSource(job.sourceHandle);
       if (!source && job.capsuleAvailable) {
         source = await this.installCapsule(job, runner);
@@ -69,6 +122,7 @@ export class CloudRunner {
       }
       const runtime = this.runtimes[source.provider];
       if (!runtime) throw new Error(`Unsupported provider ${source.provider}`);
+      await setStage("starting_runtime");
       const runtimeSource = {
         sessionId: source.templateSessionId ?? source.originalSessionId,
         originalSessionId: source.originalSessionId,
@@ -78,16 +132,24 @@ export class CloudRunner {
         beforeTurnId: source.beforeTurnId,
       };
       const before = await fingerprintFile(source.snapshotPath);
+      await setStage("running");
       const result = job.runtimeSessionId
         ? await runtime.continue({
             agent: { source: runtimeSource },
             runtimeSessionId: job.runtimeSessionId,
             message: job.input,
+            signal: controller.signal,
           })
-        : await runtime.fork({ source: runtimeSource, message: job.input });
+        : await runtime.fork({
+            source: runtimeSource,
+            message: job.input,
+            signal: controller.signal,
+          });
+      if (controller.signal.aborted) throw controller.signal.reason;
       if ((await fingerprintFile(source.snapshotPath)) !== before) {
         throw new Error("Runtime modified the immutable source snapshot");
       }
+      await setStage("finalizing");
       await this.cloud.finishJob(runner.id, runner.token, {
         jobId: job.id,
         leaseToken: job.leaseToken,
@@ -96,12 +158,19 @@ export class CloudRunner {
       });
       return { status: "completed", jobId: job.id };
     } catch (error) {
+      const cancelled = error?.code === "JOB_CANCELLED";
       await this.cloud.finishJob(runner.id, runner.token, {
         jobId: job.id,
         leaseToken: job.leaseToken,
         error: error.message,
+        cancelled,
       });
-      return { status: "failed", jobId: job.id, error: error.message };
+      return cancelled
+        ? { status: "cancelled", jobId: job.id }
+        : { status: "failed", jobId: job.id, error: error.message };
+    } finally {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      await heartbeatChain;
     }
   }
 

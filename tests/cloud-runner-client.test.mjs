@@ -44,6 +44,7 @@ test("cloud runner forks once, resumes the consumer branch, and reports through 
     },
   ];
   const finished = [];
+  const stages = [];
   const cloudClient = {
     async nextJob(id, token) {
       assert.equal(id, runnerIdentity.id);
@@ -55,6 +56,12 @@ test("cloud runner forks once, resumes the consumer branch, and reports through 
       assert.equal(id, runnerIdentity.id);
       assert.equal(token, runnerIdentity.token);
       finished.push(payload);
+    },
+    async heartbeatJob(id, token, payload) {
+      assert.equal(id, runnerIdentity.id);
+      assert.equal(token, runnerIdentity.token);
+      stages.push(payload.stage);
+      return { cancelRequested: false };
     },
   };
   const calls = [];
@@ -88,6 +95,16 @@ test("cloud runner forks once, resumes the consumer branch, and reports through 
     finished.map((result) => result.output),
     ["first reply", "second reply"],
   );
+  assert.deepEqual(stages, [
+    "loading_source",
+    "starting_runtime",
+    "running",
+    "finalizing",
+    "loading_source",
+    "starting_runtime",
+    "running",
+    "finalizing",
+  ]);
 });
 
 test("a running cloud runner discovers enrollment written after startup", async () => {
@@ -113,4 +130,120 @@ test("a running cloud runner discovers enrollment written after startup", async 
 
   assert.deepEqual(await runner.runOnce(), { status: "idle" });
   assert.deepEqual(calls, [{ id: identity.id, token: identity.token }]);
+});
+
+test("a running cloud runner reloads a snapshot published while a job is claimed", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "aaas-cloud-runner-snapshot-reload-"));
+  const snapshotPath = path.join(root, "fresh-snapshot.jsonl");
+  await writeFile(snapshotPath, '{"fresh":true}\n');
+  const digest = await fingerprintFile(snapshotPath);
+  const enrollmentState = new CloudState(root);
+  const identity = await enrollmentState.ensureRunner("local");
+  const finished = [];
+  let claimed = false;
+  const cloudClient = {
+    async nextJob(id, token) {
+      assert.equal(id, identity.id);
+      assert.equal(token, identity.token);
+      if (claimed) return null;
+      claimed = true;
+      const publisherState = new CloudState(root);
+      await publisherState.putSource({
+        handle: "src_fresh",
+        provider: "codex",
+        originalSessionId: "publisher-source",
+        snapshotPath,
+        cwd: root,
+        digest,
+      });
+      return {
+        job: {
+          id: "job-fresh",
+          sourceHandle: "src_fresh",
+          sourceDigest: digest,
+          input: "fresh",
+          runtimeSessionId: null,
+          leaseToken: "lease-fresh",
+        },
+      };
+    },
+    async finishJob(_id, _token, payload) {
+      finished.push(payload);
+    },
+  };
+  const runner = new CloudRunner({
+    dataDir: root,
+    cloudUrl: "https://aaas.example",
+    cloudClient,
+    runtimes: {
+      codex: {
+        async fork() {
+          return { runtimeSessionId: "consumer-fresh", text: "fresh reply" };
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(await runner.runOnce(), {
+    status: "completed",
+    jobId: "job-fresh",
+  });
+  assert.equal(finished[0].output, "fresh reply");
+});
+
+test("runner aborts an active runtime when the lease reports cancellation", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "aaas-cloud-runner-cancel-"));
+  const snapshotPath = path.join(root, "snapshot.jsonl");
+  await writeFile(snapshotPath, '{"immutable":true}\n');
+  const digest = await fingerprintFile(snapshotPath);
+  const state = new CloudState(root);
+  await state.ensureRunner("local");
+  await state.putSource({
+    handle: "src_cancel",
+    provider: "codex",
+    originalSessionId: "publisher-source",
+    snapshotPath,
+    cwd: root,
+    digest,
+  });
+  const finished = [];
+  const cloudClient = {
+    async nextJob() {
+      return {
+        job: {
+          id: "job-cancel",
+          sourceHandle: "src_cancel",
+          sourceDigest: digest,
+          input: "cancel me",
+          runtimeSessionId: null,
+          leaseToken: "lease-cancel",
+        },
+      };
+    },
+    async heartbeatJob(_id, _token, payload) {
+      return { cancelRequested: payload.stage === "running" };
+    },
+    async finishJob(_id, _token, payload) {
+      finished.push(payload);
+    },
+  };
+  const runtime = {
+    async fork({ signal }) {
+      signal?.throwIfAborted();
+      throw new Error("runtime should have been cancelled before starting");
+    },
+  };
+  const runner = new CloudRunner({
+    dataDir: root,
+    cloudUrl: "https://aaas.example",
+    cloudClient,
+    runtimes: { codex: runtime },
+  });
+
+  assert.deepEqual(await runner.runOnce(), {
+    status: "cancelled",
+    jobId: "job-cancel",
+  });
+  assert.equal(finished[0].cancelled, true);
+  assert.equal(finished[0].error, "Cancelled by user");
 });

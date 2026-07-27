@@ -71,6 +71,26 @@ export class CloudClient {
     });
   }
 
+  heartbeatJob(runnerId, runnerToken, payload) {
+    return this.request(
+      `/api/v1/runners/${encodeURIComponent(
+        runnerId,
+      )}/jobs/${encodeURIComponent(payload.jobId)}/heartbeat`,
+      {
+        method: "POST",
+        headers: this.jsonHeaders(runnerToken),
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  cancelJob(jobId) {
+    return this.request(`/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST",
+      headers: this.jsonHeaders(),
+    });
+  }
+
   getCapsule(runnerId, runnerToken, sourceHandle) {
     return this.request(
       `/api/v1/runners/${encodeURIComponent(
@@ -95,6 +115,7 @@ export class CloudClient {
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, pollMs));
       const result = await this.getJob(queued.jobId);
+      options.onStatus?.(result.job);
       if (result.job.status === "completed") {
         return {
           conversationId: queued.conversationId,
@@ -105,7 +126,13 @@ export class CloudClient {
       if (result.job.status === "failed") {
         throw new Error(result.job.error ?? "Agent execution failed");
       }
+      if (result.job.status === "cancelled") {
+        throw new Error(result.job.error ?? "Agent invocation was cancelled");
+      }
     }
-    throw new Error("Timed out waiting for the agent runner");
+    await this.cancelJob(queued.jobId).catch(() => {});
+    throw new Error(
+      `Timed out waiting for the agent runner after ${Math.round(timeoutMs / 1_000)} seconds`,
+    );
   }
 }

@@ -21,13 +21,14 @@ export class ClaudeRuntime {
     return fingerprintFile(source.path);
   }
 
-  async fork({ source, message }) {
+  async fork({ source, message, signal }) {
     await this.materializeTemplate(source);
     return this.runTurn({
       cwd: source.cwd,
       sessionId: source.sessionId,
       message,
       fork: true,
+      signal,
     });
   }
 
@@ -51,16 +52,17 @@ export class ClaudeRuntime {
     await writeFile(target, `${lines.join("\n")}\n`, { mode: 0o600 });
   }
 
-  async continue({ agent, runtimeSessionId, message }) {
+  async continue({ agent, runtimeSessionId, message, signal }) {
     return this.runTurn({
       cwd: agent.source.cwd,
       sessionId: runtimeSessionId,
       message,
       fork: false,
+      signal,
     });
   }
 
-  async runTurn({ cwd, sessionId, message, fork }) {
+  async runTurn({ cwd, sessionId, message, fork, signal }) {
     const args = [
       "-p",
       message,
@@ -78,6 +80,7 @@ export class ClaudeRuntime {
       cwd,
       env: this.env,
       timeoutMs: this.timeoutMs,
+      signal,
     });
     let payload;
     try {

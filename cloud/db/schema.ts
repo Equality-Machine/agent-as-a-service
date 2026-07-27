@@ -48,9 +48,13 @@ export const jobs = sqliteTable("jobs", {
   output: text("output"),
   error: text("error"),
   status: text("status").notNull().default("queued"),
+  stage: text("stage").notNull().default("queued"),
   leaseToken: text("lease_token"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   claimedAt: text("claimed_at"),
+  heartbeatAt: text("heartbeat_at"),
+  leaseExpiresAt: text("lease_expires_at"),
+  cancelRequestedAt: text("cancel_requested_at"),
   completedAt: text("completed_at"),
 });
 

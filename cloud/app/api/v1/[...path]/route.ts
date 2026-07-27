@@ -14,6 +14,14 @@ const corsHeaders = {
   "access-control-allow-methods": "GET, POST, OPTIONS",
 };
 
+const JOB_STAGES = new Set([
+  "claimed",
+  "loading_source",
+  "starting_runtime",
+  "running",
+  "finalizing",
+]);
+
 function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: corsHeaders });
 }
@@ -74,9 +82,13 @@ async function ensureSchema() {
       output TEXT,
       error TEXT,
       status TEXT NOT NULL DEFAULT 'queued',
+      stage TEXT NOT NULL DEFAULT 'queued',
       lease_token TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       claimed_at TEXT,
+      heartbeat_at TEXT,
+      lease_expires_at TEXT,
+      cancel_requested_at TEXT,
       completed_at TEXT
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS messages (
@@ -93,6 +105,19 @@ async function ensureSchema() {
       "CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages (conversation_id, created_at)",
     ),
   ]);
+  const columns = await db
+    .prepare("PRAGMA table_info(jobs)")
+    .all<{ name: string }>();
+  const existing = new Set(columns.results.map((column) => column.name));
+  const migrations = [
+    ["stage", "ALTER TABLE jobs ADD COLUMN stage TEXT NOT NULL DEFAULT 'queued'"],
+    ["heartbeat_at", "ALTER TABLE jobs ADD COLUMN heartbeat_at TEXT"],
+    ["lease_expires_at", "ALTER TABLE jobs ADD COLUMN lease_expires_at TEXT"],
+    ["cancel_requested_at", "ALTER TABLE jobs ADD COLUMN cancel_requested_at TEXT"],
+  ] as const;
+  for (const [column, statement] of migrations) {
+    if (!existing.has(column)) await db.prepare(statement).run();
+  }
 }
 
 function randomId(prefix: string) {
@@ -200,10 +225,9 @@ async function publish(request: Request) {
     db
       .prepare(
         `INSERT INTO runners (id, token_hash, kind, label, status, last_seen_at)
-         VALUES (?, ?, ?, ?, 'online', CURRENT_TIMESTAMP)
+         VALUES (?, ?, ?, ?, 'offline', '1970-01-01 00:00:00')
          ON CONFLICT(id) DO UPDATE SET token_hash = excluded.token_hash,
-           kind = excluded.kind, label = excluded.label, status = 'online',
-           last_seen_at = CURRENT_TIMESTAMP`,
+           kind = excluded.kind, label = excluded.label`,
       )
       .bind(
         runnerId,
@@ -254,7 +278,8 @@ async function getAgent(agentId: string) {
       `SELECT a.id, a.version_id, a.name, a.description, a.provider,
               a.execution_mode, a.status, a.created_at,
               r.last_seen_at AS runner_last_seen_at,
-              CASE WHEN datetime(r.last_seen_at) >= datetime('now', '-20 seconds')
+              CASE WHEN r.status = 'online'
+                AND datetime(r.last_seen_at) >= datetime('now', '-20 seconds')
                 THEN 1 ELSE 0 END AS runner_available
        FROM agents a
        LEFT JOIN runners r ON r.id = a.runner_id
@@ -327,8 +352,8 @@ async function invoke(request: Request) {
     db
       .prepare(
         `INSERT INTO jobs
-          (id, conversation_id, agent_id, runner_id, input, status)
-         VALUES (?, ?, ?, ?, ?, 'queued')`,
+          (id, conversation_id, agent_id, runner_id, input, status, stage)
+         VALUES (?, ?, ?, ?, ?, 'queued', 'queued')`,
       )
       .bind(jobId, conversationId, agent.id, agent.runner_id, input),
     db
@@ -353,9 +378,15 @@ async function invoke(request: Request) {
 async function getJob(jobId: string) {
   const row = await database()
     .prepare(
-      `SELECT id, conversation_id, agent_id, status, output, error,
-              created_at, claimed_at, completed_at
-       FROM jobs WHERE id = ?`,
+      `SELECT j.id, j.conversation_id, j.agent_id, j.status, j.stage,
+              j.output, j.error, j.created_at, j.claimed_at, j.heartbeat_at,
+              j.lease_expires_at, j.cancel_requested_at, j.completed_at,
+              CASE WHEN r.status = 'online'
+                AND datetime(r.last_seen_at) >= datetime('now', '-20 seconds')
+                THEN 1 ELSE 0 END AS runner_available
+       FROM jobs j
+       LEFT JOIN runners r ON r.id = j.runner_id
+       WHERE j.id = ?`,
     )
     .bind(jobId)
     .first<Record<string, unknown>>();
@@ -366,10 +397,15 @@ async function getJob(jobId: string) {
       conversationId: row.conversation_id,
       agentId: row.agent_id,
       status: row.status,
+      stage: row.stage,
       output: row.output,
       error: row.error,
+      runnerAvailability: row.runner_available ? "online" : "offline",
       createdAt: row.created_at,
       claimedAt: row.claimed_at,
+      heartbeatAt: row.heartbeat_at,
+      leaseExpiresAt: row.lease_expires_at,
+      cancelRequestedAt: row.cancel_requested_at,
       completedAt: row.completed_at,
     },
   });
@@ -389,9 +425,23 @@ async function nextJob(request: Request, runnerId: string) {
     .run();
   await db
     .prepare(
-      `UPDATE jobs SET status = 'queued', lease_token = NULL, claimed_at = NULL
+      `UPDATE jobs SET status = 'cancelled', stage = 'cancelled',
+         error = 'Cancelled by user', completed_at = CURRENT_TIMESTAMP
        WHERE runner_id = ? AND status = 'claimed'
-         AND datetime(claimed_at) < datetime('now', '-10 minutes')`,
+         AND cancel_requested_at IS NOT NULL
+         AND datetime(COALESCE(lease_expires_at, datetime(claimed_at, '+10 minutes')))
+           < datetime('now')`,
+    )
+    .bind(runnerId)
+    .run();
+  await db
+    .prepare(
+      `UPDATE jobs SET status = 'queued', stage = 'queued', lease_token = NULL,
+         claimed_at = NULL, heartbeat_at = NULL, lease_expires_at = NULL
+       WHERE runner_id = ? AND status = 'claimed'
+         AND cancel_requested_at IS NULL
+         AND datetime(COALESCE(lease_expires_at, datetime(claimed_at, '+10 minutes')))
+           < datetime('now')`,
     )
     .bind(runnerId)
     .run();
@@ -419,8 +469,9 @@ async function nextJob(request: Request, runnerId: string) {
   const leaseToken = randomId("lease");
   const claimed = await db
     .prepare(
-      `UPDATE jobs SET status = 'claimed', lease_token = ?,
-         claimed_at = CURRENT_TIMESTAMP
+      `UPDATE jobs SET status = 'claimed', stage = 'claimed', lease_token = ?,
+         claimed_at = CURRENT_TIMESTAMP, heartbeat_at = CURRENT_TIMESTAMP,
+         lease_expires_at = datetime('now', '+45 seconds')
        WHERE id = ? AND status = 'queued'`,
     )
     .bind(leaseToken, queued.id)
@@ -444,6 +495,78 @@ async function nextJob(request: Request, runnerId: string) {
       leaseToken,
     },
   });
+}
+
+async function heartbeatJob(
+  request: Request,
+  runnerId: string,
+  jobId: string,
+) {
+  if (!(await authenticateRunner(request, runnerId))) {
+    return json({ error: "Invalid runner credentials" }, 401);
+  }
+  const body = await readBody(request);
+  const leaseToken = textField(body, "leaseToken");
+  const stage = textField(body, "stage");
+  if (!leaseToken || !JOB_STAGES.has(stage)) {
+    return json({ error: "leaseToken and a valid stage are required" }, 400);
+  }
+  const db = database();
+  const renewed = await db
+    .prepare(
+      `UPDATE jobs SET stage = ?, heartbeat_at = CURRENT_TIMESTAMP,
+         lease_expires_at = datetime('now', '+45 seconds')
+       WHERE id = ? AND runner_id = ? AND lease_token = ?
+         AND status = 'claimed'
+         AND datetime(lease_expires_at) >= datetime('now')`,
+    )
+    .bind(stage, jobId, runnerId, leaseToken)
+    .run();
+  if (!renewed.meta.changes) {
+    return json({ error: "Active lease not found or expired" }, 409);
+  }
+  const job = await db
+    .prepare("SELECT cancel_requested_at FROM jobs WHERE id = ?")
+    .bind(jobId)
+    .first<{ cancel_requested_at: string | null }>();
+  return json({
+    jobId,
+    stage,
+    leaseExpiresInSeconds: 45,
+    cancelRequested: Boolean(job?.cancel_requested_at),
+  });
+}
+
+async function cancelJob(jobId: string) {
+  const db = database();
+  const job = await db
+    .prepare("SELECT status FROM jobs WHERE id = ?")
+    .bind(jobId)
+    .first<{ status: string }>();
+  if (!job) return json({ error: "Job not found" }, 404);
+  if (job.status === "queued") {
+    await db
+      .prepare(
+        `UPDATE jobs SET status = 'cancelled', stage = 'cancelled',
+           error = 'Cancelled by user', cancel_requested_at = CURRENT_TIMESTAMP,
+           completed_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'queued'`,
+      )
+      .bind(jobId)
+      .run();
+    return json({ jobId, status: "cancelled", cancelRequested: true });
+  }
+  if (job.status === "claimed") {
+    await db
+      .prepare(
+        `UPDATE jobs SET cancel_requested_at = COALESCE(
+           cancel_requested_at, CURRENT_TIMESTAMP) WHERE id = ?`,
+      )
+      .bind(jobId)
+      .run();
+    return json({ jobId, status: "claimed", cancelRequested: true });
+  }
+  return json({ jobId, status: job.status, cancelRequested: false });
 }
 
 async function getCapsule(
@@ -479,30 +602,44 @@ async function finishJob(request: Request, runnerId: string) {
   }
   const output = textField(body, "output");
   const error = textField(body, "error");
-  if (!output && !error) {
+  const cancelled = body.cancelled === true;
+  if (!output && !error && !cancelled) {
     return json({ error: "output or error is required" }, 400);
   }
 
   const db = database();
   const job = await db
     .prepare(
-      `SELECT id, conversation_id FROM jobs
+      `SELECT id, conversation_id, cancel_requested_at FROM jobs
        WHERE id = ? AND runner_id = ? AND lease_token = ? AND status = 'claimed'`,
     )
     .bind(jobId, runnerId, leaseToken)
-    .first<{ id: string; conversation_id: string }>();
+    .first<{
+      id: string;
+      conversation_id: string;
+      cancel_requested_at: string | null;
+    }>();
   if (!job) return json({ error: "Active lease not found" }, 409);
 
   const runtimeSessionId = textField(body, "runtimeSessionId");
-  const status = error ? "failed" : "completed";
+  const wasCancelled = cancelled || Boolean(job.cancel_requested_at);
+  const status = wasCancelled ? "cancelled" : error ? "failed" : "completed";
+  const finalError = wasCancelled ? error || "Cancelled by user" : error || null;
   const statements = [
     db
       .prepare(
-        `UPDATE jobs SET status = ?, output = ?, error = ?,
+        `UPDATE jobs SET status = ?, stage = ?, output = ?, error = ?,
            completed_at = CURRENT_TIMESTAMP
          WHERE id = ? AND lease_token = ?`,
       )
-      .bind(status, output || null, error || null, jobId, leaseToken),
+      .bind(
+        status,
+        status,
+        wasCancelled ? null : output || null,
+        finalError,
+        jobId,
+        leaseToken,
+      ),
     db
       .prepare(
         `UPDATE conversations SET runtime_session_id = COALESCE(?, runtime_session_id),
@@ -510,7 +647,7 @@ async function finishJob(request: Request, runnerId: string) {
       )
       .bind(runtimeSessionId || null, job.conversation_id),
   ];
-  if (output) {
+  if (output && !wasCancelled) {
     statements.push(
       db
         .prepare(
@@ -525,7 +662,8 @@ async function finishJob(request: Request, runnerId: string) {
 }
 
 async function endConversation(conversationId: string) {
-  const result = await database()
+  const db = database();
+  const result = await db
     .prepare(
       `UPDATE conversations SET status = 'ended', updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND status = 'active'`,
@@ -535,6 +673,23 @@ async function endConversation(conversationId: string) {
   if (!result.meta.changes) {
     return json({ error: "Active conversation not found" }, 404);
   }
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE jobs SET status = 'cancelled', stage = 'cancelled',
+           error = 'Conversation ended', cancel_requested_at = CURRENT_TIMESTAMP,
+           completed_at = CURRENT_TIMESTAMP
+         WHERE conversation_id = ? AND status = 'queued'`,
+      )
+      .bind(conversationId),
+    db
+      .prepare(
+        `UPDATE jobs SET cancel_requested_at = COALESCE(
+           cancel_requested_at, CURRENT_TIMESTAMP)
+         WHERE conversation_id = ? AND status = 'claimed'`,
+      )
+      .bind(conversationId),
+  ]);
   return json({ conversationId, status: "ended" });
 }
 
@@ -580,12 +735,30 @@ async function route(request: Request) {
     return getJob(path[1]);
   }
   if (
+    method === "POST" &&
+    path[0] === "jobs" &&
+    path[1] &&
+    path[2] === "cancel"
+  ) {
+    return cancelJob(path[1]);
+  }
+  if (
     method === "GET" &&
     path[0] === "runners" &&
     path[1] &&
     path[2] === "next"
   ) {
     return nextJob(request, path[1]);
+  }
+  if (
+    method === "POST" &&
+    path[0] === "runners" &&
+    path[1] &&
+    path[2] === "jobs" &&
+    path[3] &&
+    path[4] === "heartbeat"
+  ) {
+    return heartbeatJob(request, path[1], path[3]);
   }
   if (
     method === "POST" &&

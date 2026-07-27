@@ -15,9 +15,51 @@ type Agent = {
 };
 
 type Message = { role: "user" | "assistant"; content: string };
+type Job = {
+  id: string;
+  status: "queued" | "claimed" | "completed" | "failed" | "cancelled";
+  stage:
+    | "queued"
+    | "claimed"
+    | "loading_source"
+    | "starting_runtime"
+    | "running"
+    | "finalizing"
+    | "completed"
+    | "failed"
+    | "cancelled";
+  runnerAvailability: "online" | "offline";
+  output?: string;
+  error?: string;
+  cancelRequestedAt?: string;
+};
 
 const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function describeJob(job: Job | null) {
+  if (!job) return "准备调用";
+  if (job.status === "queued" && job.runnerAvailability === "offline") {
+    return "Runner 当前离线，任务仍在排队";
+  }
+  if (job.status === "queued") return "排队等待 Runner";
+  if (job.status === "cancelled") return "调用已取消";
+  if (job.status === "failed") return "运行时执行失败";
+  if (job.status === "completed") return "执行完成";
+  if (job.cancelRequestedAt) return "正在取消运行时";
+  const stages: Record<Job["stage"], string> = {
+    queued: "排队等待 Runner",
+    claimed: "Runner 已领取任务",
+    loading_source: "加载并校验 Agent 快照",
+    starting_runtime: "启动隔离运行时",
+    running: "Agent 执行中",
+    finalizing: "保存分支结果",
+    completed: "执行完成",
+    failed: "运行时执行失败",
+    cancelled: "调用已取消",
+  };
+  return stages[job.stage] ?? "Runner 已领取任务";
+}
 
 export function AgentConsole() {
   const [agentId, setAgentId] = useState("");
@@ -27,11 +69,13 @@ export function AgentConsole() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState("");
+  const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, busy]);
+  }, [messages, busy, currentJob]);
 
   const findAgent = useCallback(async (id: string) => {
     const cleanId = id.trim();
@@ -45,6 +89,7 @@ export function AgentConsole() {
       setAgent(data.agent);
       setConversationId("");
       setMessages([]);
+      setCurrentJob(null);
       window.history.replaceState({}, "", `/?agent=${encodeURIComponent(cleanId)}`);
     } catch (error) {
       setAgent(null);
@@ -69,6 +114,8 @@ export function AgentConsole() {
     setInput("");
     setMessages((current) => [...current, { role: "user", content: prompt }]);
     setBusy(true);
+    setCurrentJob(null);
+    let lastJob: Job | null = null;
     try {
       const response = await fetch("/api/v1/invoke", {
         method: "POST",
@@ -82,34 +129,86 @@ export function AgentConsole() {
       const queued = await response.json();
       if (!response.ok) throw new Error(queued.error ?? "Unable to invoke agent");
       setConversationId(queued.conversationId);
+      setCurrentJobId(queued.jobId);
+      lastJob = {
+        id: queued.jobId,
+        status: "queued",
+        stage: "queued",
+        runnerAvailability: agent.availability,
+      };
+      setCurrentJob(lastJob);
 
-      for (let attempt = 0; attempt < 150; attempt += 1) {
+      for (let attempt = 0; attempt < 750; attempt += 1) {
         await wait(800);
         const jobResponse = await fetch(`/api/v1/jobs/${queued.jobId}`);
         const jobData = await jobResponse.json();
-        if (jobData.job?.status === "completed") {
+        if (!jobResponse.ok) {
+          throw new Error(jobData.error ?? "Unable to read job status");
+        }
+        lastJob = jobData.job as Job;
+        setCurrentJob(lastJob);
+        if (lastJob.status === "completed") {
           setMessages((current) => [
             ...current,
-            { role: "assistant", content: jobData.job.output },
+            { role: "assistant", content: lastJob?.output ?? "" },
           ]);
           return;
         }
-        if (jobData.job?.status === "failed") {
-          throw new Error(jobData.job.error ?? "Agent execution failed");
+        if (lastJob.status === "failed") {
+          throw new Error(lastJob.error ?? "Agent execution failed");
+        }
+        if (lastJob.status === "cancelled") {
+          setMessages((current) => [
+            ...current,
+            { role: "assistant", content: "本次调用已取消。" },
+          ]);
+          return;
         }
       }
-      throw new Error("Agent is offline or took too long to respond");
+      await fetch(`/api/v1/jobs/${queued.jobId}/cancel`, { method: "POST" });
+      throw new Error(`等待超过 10 分钟，已请求取消；最后阶段：${describeJob(lastJob)}`);
     } catch (error) {
       setMessages((current) => [
         ...current,
-        { role: "assistant", content: `调用失败：${(error as Error).message}` },
+        {
+          role: "assistant",
+          content: `调用失败（${describeJob(lastJob)}）：${(error as Error).message}`,
+        },
       ]);
     } finally {
       setBusy(false);
+      setCurrentJobId("");
     }
   }
 
+  async function cancelCurrentJob() {
+    if (!currentJobId) return;
+    const response = await fetch(
+      `/api/v1/jobs/${encodeURIComponent(currentJobId)}/cancel`,
+      { method: "POST" },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      setMessages((current) => [
+        ...current,
+        { role: "assistant", content: `取消失败：${result.error ?? "Unknown error"}` },
+      ]);
+      return;
+    }
+    setCurrentJob((job) =>
+      job
+        ? {
+            ...job,
+            status: result.status,
+            stage: result.status === "cancelled" ? "cancelled" : job.stage,
+            cancelRequestedAt: new Date().toISOString(),
+          }
+        : job,
+    );
+  }
+
   async function newConversation() {
+    if (currentJobId) await cancelCurrentJob();
     if (conversationId) {
       await fetch(`/api/v1/conversations/${conversationId}/end`, {
         method: "POST",
@@ -117,6 +216,7 @@ export function AgentConsole() {
     }
     setConversationId("");
     setMessages([]);
+    setCurrentJob(null);
   }
 
   return (
@@ -151,7 +251,7 @@ export function AgentConsole() {
               value={agentId}
               onChange={(event) => setAgentId(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") void findAgent();
+                if (event.key === "Enter") void findAgent(agentId);
               }}
               placeholder="agt_7f2c9a3e..."
               spellCheck={false}
@@ -203,9 +303,7 @@ export function AgentConsole() {
                     <span>{agent.provider}</span>
                     <span>·</span>
                     <span>{agent.executionMode} runner</span>
-                    <span className={agent.availability}>
-                      {agent.availability}
-                    </span>
+                    <span className={agent.availability}>{agent.availability}</span>
                   </div>
                 </div>
                 <button className="new-chat" onClick={() => void newConversation()}>
@@ -231,7 +329,19 @@ export function AgentConsole() {
                 {busy && messages.length > 0 ? (
                   <div className="message assistant">
                     <span>A</span>
-                    <p className="thinking">Runner 正在执行<span>...</span></p>
+                    <div className="job-progress">
+                      <div>
+                        <i className={`job-dot ${currentJob?.status ?? "queued"}`} />
+                        <strong>{describeJob(currentJob)}</strong>
+                      </div>
+                      <small>
+                        {currentJob?.stage ?? "queued"} ·{" "}
+                        {currentJob?.runnerAvailability ?? agent.availability}
+                      </small>
+                      <button type="button" onClick={() => void cancelCurrentJob()}>
+                        取消调用
+                      </button>
+                    </div>
                   </div>
                 ) : null}
                 <div ref={chatEnd} />
@@ -239,6 +349,7 @@ export function AgentConsole() {
               <form className="composer" onSubmit={submit}>
                 <textarea
                   value={input}
+                  disabled={busy}
                   onChange={(event) => setInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
@@ -254,7 +365,8 @@ export function AgentConsole() {
                 </button>
               </form>
               <footer>
-                Conversation {conversationId || "not started"} · Source session stays immutable
+                Conversation {conversationId || "not started"} ·{" "}
+                {currentJob ? describeJob(currentJob) : "Source session stays immutable"}
               </footer>
             </>
           ) : (

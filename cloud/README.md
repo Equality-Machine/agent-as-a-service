@@ -9,6 +9,8 @@
 - 管理稳定的 Agent 和不可变 AgentVersion；
 - 为每次使用创建独立 Conversation；
 - 通过 Job / Lease 把请求分配给发布者本机或服务器 Runner；
+- 展示排队、快照加载、隔离运行时启动、执行和收尾阶段，并支持用户取消；
+- Runner 通过心跳续期短租约；失联任务可恢复而不会长期伪装成“执行中”；
 - D1 保存元数据、Conversation 和任务状态；
 - R2 只保存 cloud 模式下的 AES-256-GCM 加密 Source Capsule；
 - 提供网页、HTTP API 和 MCP/Skill 所需的调用面。

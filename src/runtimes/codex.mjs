@@ -1,10 +1,37 @@
 import { spawn } from "node:child_process";
+import { mkdir, symlink } from "node:fs/promises";
+import { homedir } from "node:os";
+import path from "node:path";
 import readline from "node:readline";
 
 import { fingerprintFile } from "./fingerprint.mjs";
 
+const ISOLATED_FEATURES = [
+  "apps",
+  "plugins",
+  "hooks",
+  "memories",
+  "skill_search",
+  "skill_mcp_dependency_install",
+  "multi_agent",
+  "computer_use",
+  "browser_use",
+  "in_app_browser",
+  "workspace_dependencies",
+];
+
+const isolatedArgs = (args) => {
+  const result = [...args];
+  for (const feature of ISOLATED_FEATURES) {
+    if (!result.some((value, index) => value === "--disable" && result[index + 1] === feature)) {
+      result.push("--disable", feature);
+    }
+  }
+  return result;
+};
+
 class AppServerClient {
-  constructor({ executable, args, cwd, env, timeoutMs }) {
+  constructor({ executable, args, cwd, env, timeoutMs, signal }) {
     this.child = spawn(executable, args, {
       cwd,
       env,
@@ -17,6 +44,15 @@ class AppServerClient {
     this.stderr = "";
     this.closed = false;
     this.timeoutMs = timeoutMs;
+    this.signal = signal;
+    this.abort = () => {
+      const error =
+        signal?.reason instanceof Error ? signal.reason : new Error("Codex turn aborted");
+      this.child.kill("SIGTERM");
+      this.failAll(error);
+    };
+    signal?.addEventListener("abort", this.abort, { once: true });
+    if (signal?.aborted) this.abort();
     this.child.stderr.on("data", (chunk) => {
       this.stderr += chunk.toString("utf8");
     });
@@ -103,6 +139,7 @@ class AppServerClient {
 
   close() {
     this.closed = true;
+    this.signal?.removeEventListener("abort", this.abort);
     this.child.stdin.end();
     this.child.kill("SIGTERM");
   }
@@ -112,40 +149,54 @@ export class CodexRuntime {
   constructor(options = {}) {
     this.executable =
       options.executable ?? "/Applications/ChatGPT.app/Contents/Resources/codex";
-    this.executableArgs = options.executableArgs ?? ["app-server", "--stdio"];
+    this.executableArgs = isolatedArgs(
+      options.executableArgs ?? ["app-server", "--stdio"],
+    );
     this.env = options.env ?? process.env;
-    this.timeoutMs = options.timeoutMs ?? 600_000;
+    this.sourceCodexHome =
+      options.sourceCodexHome ??
+      this.env.CODEX_HOME ??
+      path.join(homedir(), ".codex");
+    this.codexHome =
+      options.codexHome ??
+      this.env.AAAS_CODEX_HOME ??
+      path.join(homedir(), ".aaas", "runtime", "codex-home");
+    this.timeoutMs = options.timeoutMs ?? 300_000;
   }
 
   async fingerprintSource(source) {
     return fingerprintFile(source.path);
   }
 
-  async fork({ source, message }) {
+  async fork({ source, message, signal }) {
     return this.runTurn({
       source,
       threadId: source.sessionId,
       message,
       fork: true,
+      signal,
     });
   }
 
-  async continue({ agent, runtimeSessionId, message }) {
+  async continue({ agent, runtimeSessionId, message, signal }) {
     return this.runTurn({
       source: agent.source,
       threadId: runtimeSessionId,
       message,
       fork: false,
+      signal,
     });
   }
 
-  async runTurn({ source, threadId, message, fork }) {
+  async runTurn({ source, threadId, message, fork, signal }) {
+    await this.prepareHome();
     const client = new AppServerClient({
       executable: this.executable,
       args: this.executableArgs,
       cwd: source.cwd,
-      env: this.env,
+      env: { ...this.env, CODEX_HOME: this.codexHome },
       timeoutMs: this.timeoutMs,
+      signal,
     });
     try {
       await client.call("initialize", {
@@ -210,6 +261,18 @@ export class CodexRuntime {
       return { runtimeSessionId, text };
     } finally {
       client.close();
+    }
+  }
+
+  async prepareHome() {
+    await mkdir(this.codexHome, { recursive: true, mode: 0o700 });
+    const sourceAuth = path.join(this.sourceCodexHome, "auth.json");
+    const isolatedAuth = path.join(this.codexHome, "auth.json");
+    if (sourceAuth === isolatedAuth) return;
+    try {
+      await symlink(sourceAuth, isolatedAuth);
+    } catch (error) {
+      if (error.code !== "EEXIST" && error.code !== "ENOENT") throw error;
     }
   }
 }

@@ -15,6 +15,10 @@ test("cloud app exposes an Agent-ID-first fork-safe console", async () => {
   assert.match(consoleSource, /Agent ID/);
   assert.match(consoleSource, /\/api\/v1\/agents\//);
   assert.match(consoleSource, /\/api\/v1\/invoke/);
+  assert.match(consoleSource, /\/api\/v1\/jobs\/.*\/cancel/);
+  assert.match(consoleSource, /排队等待 Runner/);
+  assert.match(consoleSource, /启动隔离运行时/);
+  assert.match(consoleSource, /Agent 执行中/);
   assert.match(consoleSource, /New conversation/);
   assert.match(consoleSource, /Source session stays immutable/);
   assert.match(layout, /AaaS — Agent as a Service/);
@@ -35,6 +39,8 @@ test("cloud API implements publish, lookup, invoke, leases, and branch end", asy
     "getAgent(path[1])",
     "invoke(request)",
     "nextJob(request, path[1])",
+    "heartbeatJob(request, path[1], path[3])",
+    "cancelJob(path[1])",
     "finishJob(request, path[1])",
     "endConversation(path[1])",
   ]) {
@@ -44,5 +50,9 @@ test("cloud API implements publish, lookup, invoke, leases, and branch end", asy
   assert.match(api, /source_handle/);
   assert.match(api, /CAPSULES/);
   assert.match(api, /getCapsule/);
+  assert.match(api, /lease_expires_at/);
+  assert.match(api, /cancel_requested_at/);
+  assert.match(api, /loading_source/);
+  assert.match(api, /starting_runtime/);
   assert.doesNotMatch(api, /source_path|session_path|transcript/);
 });
