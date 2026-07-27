@@ -79,7 +79,7 @@ exit 0
 );
 
 test(
-  "public GitHub package installs a consumer directly with npx",
+  "public GitHub shorthand installs a consumer directly with npx",
   { skip: !enabled },
   async () => {
     const home = await mkdtemp(path.join(tmpdir(), "aaas-public-npx-"));
@@ -100,7 +100,7 @@ exit 0
       "npx",
       [
         "--yes",
-        "github:Equality-Machine/agent-as-a-service",
+        "Equality-Machine/agent-as-a-service",
         "--install-dir",
         installDir,
         "--client",

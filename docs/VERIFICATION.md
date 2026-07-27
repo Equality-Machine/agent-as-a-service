@@ -218,8 +218,8 @@ Runner hot enrollment:
 `npm test` on 2026-07-27:
 
 ```text
-33 tests
-28 passed
+34 tests
+29 passed
 5 skipped (2 live-provider + production Runner + 2 post-publish installers)
 0 failed
 ```
@@ -270,7 +270,7 @@ directories:
 
 ```text
 GitHub Raw install.sh: passed
-npx -y github:Equality-Machine/agent-as-a-service: passed
+npx -y Equality-Machine/agent-as-a-service: passed
 Runner state created by either consumer install: no
 ```
 

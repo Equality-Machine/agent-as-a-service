@@ -50,6 +50,24 @@ test("bootstrap help documents all three roles without requiring Node or Git", (
   assert.match(result.stdout, /runner/i);
 });
 
+test("public instructions never advertise the unpublished npm registry alias", async () => {
+  const readme = await readFile(path.join(root, "README.md"), "utf8");
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts", "aaas.mjs"), "--help"],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(readme, /npx -y Equality-Machine\/agent-as-a-service/);
+  assert.match(
+    result.stdout,
+    /npx -y Equality-Machine\/agent-as-a-service/,
+  );
+  assert.doesNotMatch(readme, /npx -y @efflora\/aaas/);
+  assert.doesNotMatch(result.stdout, /npx -y @efflora\/aaas/);
+});
+
 test("consumer installation configures a client without creating a runner", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "aaas-installer-home-"));
   const fakeCodex = path.join(home, "codex");

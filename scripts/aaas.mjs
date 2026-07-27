@@ -48,8 +48,7 @@ The default install adds only the AaaS Skill and MCP. It never installs a
 Runner. Publishing your own Agent checks for a Runner and offers to install it.
 
 Examples:
-  npx -y @efflora/aaas
-  npx -y github:Equality-Machine/agent-as-a-service
+  npx -y Equality-Machine/agent-as-a-service
 `);
 }
 
