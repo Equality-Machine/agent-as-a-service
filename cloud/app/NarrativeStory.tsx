@@ -35,13 +35,13 @@ function ContextVisual({
         <div className="agent-core-card">
           <div className="story-avatar">A</div>
           <div>
-            <small>{language === "zh" ? "你的 Agent" : "Your Agent"}</small>
+            <small>{language === "zh" ? "带着已有背景" : "Context carried forward"}</small>
             <strong>
-              {language === "zh" ? "已经准备好接着做" : "Ready to continue"}
+              {language === "zh" ? "可以直接做下一步" : "Ready for the next step"}
             </strong>
           </div>
           <span className="ready-pill">
-            {language === "zh" ? "就绪" : "Ready"}
+            {language === "zh" ? "开始" : "Go"}
           </span>
         </div>
       </div>
@@ -62,7 +62,7 @@ function ShareVisual({
       <div className="share-origin">
         <div className="story-avatar">A</div>
         <div>
-          <small>{language === "zh" ? "已分享" : "Shared"}</small>
+          <small>{language === "zh" ? "发一个链接即可" : "One link is enough"}</small>
           <strong>Research Agent</strong>
         </div>
       </div>
@@ -96,11 +96,11 @@ function ConversationVisual({
       <div className="conversation-source">
         <div className="story-avatar">A</div>
         <div>
-          <small>{language === "zh" ? "同一个 Agent" : "The same Agent"}</small>
+          <small>{language === "zh" ? "共享能力" : "Shared capability"}</small>
           <strong>Strategy Agent</strong>
         </div>
         <span className="source-state">
-          {language === "zh" ? "保持原样" : "Unchanged"}
+          {language === "zh" ? "源内容不变" : "Source unchanged"}
         </span>
       </div>
       <div className="conversation-pair">
@@ -113,13 +113,13 @@ function ConversationVisual({
             <div className="conversation-bubble">
               {index === 0
                 ? language === "zh"
-                  ? "帮我把方案收敛成三步。"
-                  : "Turn the plan into three steps."
+                  ? "把这份研究变成三条决策建议。"
+                  : "Turn this research into three decisions."
                 : language === "zh"
-                  ? "换一个面向客户的版本。"
-                  : "Make a client-facing version."}
+                  ? "给客户写成一页方案。"
+                  : "Make a one-page client proposal."}
             </div>
-            <span>{language === "zh" ? "只属于我" : "Mine"}</span>
+            <span>{language === "zh" ? "我的私密对话" : "Private to me"}</span>
           </div>
         ))}
       </div>

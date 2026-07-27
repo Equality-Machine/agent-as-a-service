@@ -1,0 +1,124 @@
+name: Bug report
+description: Report behavior that is broken, misleading, or different from the documented contract.
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve AaaS.
+
+        **Do not include API keys, Runner tokens, provider credentials, private session content, transcripts, or identifying local paths.** Use the private security process for vulnerabilities.
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: Your role
+      description: Which AaaS role were you using when the problem occurred?
+      options:
+        - Web user
+        - Consumer (Skill + MCP, no Runner)
+        - Local publisher
+        - Server Runner operator
+        - API or product integrator
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      options:
+        - Web app
+        - Installer
+        - Codex Skill or MCP
+        - Claude Code Skill or MCP
+        - Local Runner
+        - Cloud Runner
+        - HTTP API
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What went wrong?
+      description: Lead with the visible user impact in one or two sentences.
+      placeholder: I expected to continue the shared Agent, but…
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened?
+      placeholder: The Agent should have…
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use a synthetic Agent or redacted data. Include the smallest sequence that reproduces the problem.
+      placeholder: |
+        1. Install the consumer role with…
+        2. Open a synthetic Agent link…
+        3. Send…
+        4. Observe…
+    validations:
+      required: true
+
+  - type: input
+    id: stage
+    attributes:
+      label: Visible status or job stage
+      description: For example queued, loading source, starting runtime, running, or finalizing.
+      placeholder: running
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, architecture, Node.js version, client/version, execution mode, and AaaS commit or version.
+      placeholder: |
+        macOS 15 / arm64
+        Node.js 22.x
+        Codex …
+        AaaS 0.2.1 / local mode
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence
+      description: Add the smallest useful error, screenshot, or log after removing secrets, private content, and local paths.
+      render: text
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Did this work before?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, private session content, transcripts, and identifying local paths.
+          required: true
+        - label: I searched existing open and closed issues.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

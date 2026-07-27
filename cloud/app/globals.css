@@ -1056,6 +1056,38 @@ summary:focus-visible {
   line-height: 1.7;
 }
 
+.publisher-link {
+  min-height: 44px;
+  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.publisher-link span {
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  transition: border-color 180ms ease;
+}
+
+.publisher-link svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  transition: transform 180ms ease;
+}
+
+.publisher-link:hover span {
+  border-color: var(--ink);
+}
+
+.publisher-link:hover svg {
+  transform: translateX(3px);
+}
+
 .agent-lookup-closing .lookup-label-row {
   color: var(--ink);
 }

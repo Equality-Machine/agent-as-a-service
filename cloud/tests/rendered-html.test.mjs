@@ -14,6 +14,7 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
 
   assert.match(page, /<AgentConsole /);
   assert.match(consoleSource, /PUBLIC_UI_COPY/);
+  assert.match(consoleSource, /agent-as-a-service#publish-your-own-agent/);
   assert.match(consoleSource, /aaas-language/);
   assert.match(consoleSource, /aria-live/);
   assert.match(consoleSource, /\/api\/v1\/agents\//);
@@ -22,12 +23,13 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
   assert.match(consoleSource, /queuedOffline/);
   assert.match(consoleSource, /loading_source/);
   assert.match(consoleSource, /starting_runtime/);
-  assert.match(consoleSource, /Agent 正在处理/);
+  assert.match(consoleSource, /正在处理你的任务/);
   assert.match(consoleSource, /MessageMarkdown/);
   assert.match(storySource, /requestAnimationFrame/);
   assert.match(storySource, /prefers-reduced-motion/);
   assert.match(storySource, /data-phase/);
   assert.match(layout, /AaaS — Agent as a Service/);
+  assert.match(layout, /Skip the briefing\. Start with an Agent/);
   assert.match(css, /--accent:\s*#f26a2e/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(packageJson, /@phosphor-icons\/react/);
@@ -79,6 +81,7 @@ test("canonical and legacy Agent links render the self-describing handoff", asyn
   assert.match(home, /searchParams/);
   assert.match(home, /initialAgentId/);
   assert.match(agentPage, /generateMetadata/);
+  assert.match(agentPage, /start with the actual task/);
   assert.match(agentPage, /application\/aaas\+json/);
   assert.match(agentPage, /initialAgentId=\{agentId\}/);
   assert.match(consoleSource, /AgentLinkInstructions/);

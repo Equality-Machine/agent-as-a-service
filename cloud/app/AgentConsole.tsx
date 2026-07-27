@@ -62,31 +62,31 @@ const wait = (milliseconds: number) =>
 const JOB_COPY = {
   zh: {
     ready: "准备开始",
-    queuedOffline: "服务暂时无法响应，任务仍在等待",
-    queued: "正在排队",
+    queuedOffline: "执行端暂时离线，恢复后会继续",
+    queued: "已收到，等待开始",
     cancelled: "已取消",
     failed: "执行失败",
     completed: "已完成",
     cancelling: "正在取消",
-    claimed: "已经开始处理",
-    loading_source: "正在准备 Agent",
-    starting_runtime: "正在启动",
-    running: "Agent 正在处理",
-    finalizing: "正在整理结果",
+    claimed: "已接单，正在准备",
+    loading_source: "正在载入已有背景",
+    starting_runtime: "正在建立你的独立对话",
+    running: "正在处理你的任务",
+    finalizing: "正在整理可用结果",
   },
   en: {
     ready: "Ready",
-    queuedOffline: "The service is unavailable; your task is still waiting",
-    queued: "Waiting in the queue",
+    queuedOffline: "The Runner is offline; work will continue when it returns",
+    queued: "Received — waiting to start",
     cancelled: "Cancelled",
     failed: "Run failed",
     completed: "Completed",
     cancelling: "Cancelling",
-    claimed: "Work has started",
-    loading_source: "Preparing the Agent",
-    starting_runtime: "Starting",
-    running: "The Agent is working",
-    finalizing: "Finishing the response",
+    claimed: "Accepted — getting ready",
+    loading_source: "Loading the existing context",
+    starting_runtime: "Creating your private conversation",
+    running: "Working on your task",
+    finalizing: "Turning the work into a useful result",
   },
 } as const;
 
@@ -291,10 +291,10 @@ function HomeExperience({
           <header>
             <div className="story-avatar">A</div>
             <div>
-              <small>{language === "zh" ? "已分享的 Agent" : "A shared Agent"}</small>
+              <small>{language === "zh" ? "已有理解，可以复用" : "Context ready to reuse"}</small>
               <strong>Research Agent</strong>
             </div>
-            <span>{language === "zh" ? "可以开始" : "Ready"}</span>
+            <span>{language === "zh" ? "在线" : "Ready"}</span>
           </header>
           {copy.story[0].cards?.slice(0, 3).map((item) => (
             <div className="preview-row" key={item}>
@@ -312,6 +312,15 @@ function HomeExperience({
           <span>{copy.home.eyebrow}</span>
           <h2 id="closing-title">{copy.home.closingTitle}</h2>
           <p>{copy.home.closingBody}</p>
+          <a
+            className="publisher-link"
+            href="https://github.com/Equality-Machine/agent-as-a-service#publish-your-own-agent"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>{copy.home.publisherCta}</span>
+            <ArrowRight aria-hidden="true" />
+          </a>
         </div>
         <AgentLookup
           language={language}

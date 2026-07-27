@@ -84,8 +84,8 @@ old branch messages present after New conversation: no
 At a 390 x 844 viewport the document and hero widths were 390 px, the heading
 kept horizontal writing, and `scrollWidth` remained 390 px. Current screenshots:
 
-- `output/playwright/aaas-production-v4-desktop.png`
-- `output/playwright/aaas-production-v4-mobile.png`
+- `assets/screenshots/legacy/aaas-production-v4-desktop.png`
+- `assets/screenshots/legacy/aaas-production-v4-mobile.png`
 
 ## Real current-Session publication
 

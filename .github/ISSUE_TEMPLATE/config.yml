@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question or discuss a direction
+    url: https://github.com/Equality-Machine/agent-as-a-service/discussions
+    about: Use Discussions for setup questions, product thinking, and early ideas.
+  - name: Report a security vulnerability
+    url: https://github.com/Equality-Machine/agent-as-a-service/security/advisories/new
+    about: Use GitHub's private security-advisory flow. Never post secrets or exploit details publicly.
