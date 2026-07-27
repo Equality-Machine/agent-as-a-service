@@ -2,27 +2,35 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("cloud app exposes an Agent-ID-first fork-safe console", async () => {
-  const [page, consoleSource, layout, css, packageJson] = await Promise.all([
+test("cloud app exposes an Agent-ID-first bilingual story and console", async () => {
+  const [page, consoleSource, storySource, layout, css, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/AgentConsole.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/NarrativeStory.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /<AgentConsole /);
-  assert.match(consoleSource, /Agent ID/);
+  assert.match(consoleSource, /PUBLIC_UI_COPY/);
+  assert.match(consoleSource, /aaas-language/);
+  assert.match(consoleSource, /aria-live/);
   assert.match(consoleSource, /\/api\/v1\/agents\//);
   assert.match(consoleSource, /\/api\/v1\/invoke/);
   assert.match(consoleSource, /\/api\/v1\/jobs\/.*\/cancel/);
-  assert.match(consoleSource, /排队等待 Runner/);
-  assert.match(consoleSource, /启动隔离运行时/);
-  assert.match(consoleSource, /Agent 执行中/);
-  assert.match(consoleSource, /New conversation/);
-  assert.match(consoleSource, /Source session stays immutable/);
+  assert.match(consoleSource, /queuedOffline/);
+  assert.match(consoleSource, /loading_source/);
+  assert.match(consoleSource, /starting_runtime/);
+  assert.match(consoleSource, /Agent 正在处理/);
+  assert.match(consoleSource, /MessageMarkdown/);
+  assert.match(storySource, /requestAnimationFrame/);
+  assert.match(storySource, /prefers-reduced-motion/);
+  assert.match(storySource, /data-phase/);
   assert.match(layout, /AaaS — Agent as a Service/);
-  assert.match(css, /--orange:\s*#ff5d1d/);
+  assert.match(css, /--accent:\s*#f26a2e/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(packageJson, /@phosphor-icons\/react/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await assert.rejects(
     access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)),

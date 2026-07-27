@@ -9,4 +9,5 @@ export function buildAgentManifest(input: {
 
 export function AgentLinkInstructions(props: {
   agentId: string;
+  language?: "zh" | "en";
 }): ReactElement;

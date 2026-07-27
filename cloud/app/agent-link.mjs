@@ -68,9 +68,39 @@ export function buildAgentManifest({ agentId, origin = "" }) {
   };
 }
 
-export function AgentLinkInstructions({ agentId }) {
+const LINK_COPY = {
+  zh: {
+    kicker: "在你的工具里继续",
+    title: "把这个页面链接交给 Codex 或 Claude Code",
+    body:
+      "如果尚未安装 AaaS，它会从页面里的说明完成消费者配置。使用别人分享的 Agent 不需要 Runner。",
+    summary: "如何安装和使用",
+    steps: [
+      "先检查 AaaS MCP 工具：find_agent、agent_start、agent_continue、agent_end。",
+      "如果工具不存在，先征得你的同意，再安装消费者 Skill + MCP：",
+      "安装后重启客户端即可使用 MCP；当前任务也可以按照机器清单中的 HTTP 流程立即调用。",
+    ],
+    manifest: "打开机器可读 Agent 清单",
+  },
+  en: {
+    kicker: "CONTINUE IN YOUR TOOLS",
+    title: "Give this page link to Codex or Claude Code",
+    body:
+      "If AaaS is not installed yet, the instructions on this page guide the consumer setup. You never need a Runner just to use someone else’s Agent.",
+    summary: "How to install and use it",
+    steps: [
+      "First, check for the AaaS MCP tools: find_agent, agent_start, agent_continue, and agent_end.",
+      "If those tools are missing, ask for your approval before installing the consumer Skill + MCP:",
+      "Restart the client to expose the MCP tools. The current task can also use the HTTP flow in the machine-readable manifest immediately.",
+    ],
+    manifest: "Open the machine-readable Agent manifest",
+  },
+};
+
+export function AgentLinkInstructions({ agentId, language = "zh" }) {
   const manifest = buildAgentManifest({ agentId });
   const protocolJson = JSON.stringify(manifest).replaceAll("<", "\\u003c");
+  const copy = LINK_COPY[language] ?? LINK_COPY.zh;
 
   return createElement(
     "section",
@@ -82,40 +112,36 @@ export function AgentLinkInstructions({ agentId }) {
     createElement(
       "div",
       { className: "agent-link-copy" },
-      createElement("span", { className: "agent-link-kicker" }, "USE IN YOUR AGENT"),
+      createElement("span", { className: "agent-link-kicker" }, copy.kicker),
       createElement(
         "h2",
         { id: "agent-link-title" },
-        "把这个链接直接粘贴给 Codex 或 Claude Code",
+        copy.title,
       ),
-      createElement(
-        "p",
-        null,
-        "页面同时提供人类可读说明和机器清单。只调用这个 Agent 不需要 Runner。",
-      ),
+      createElement("p", null, copy.body),
     ),
     createElement(
       "details",
-      { open: true },
-      createElement("summary", null, "Codex / Claude Code 自动配置说明"),
+      null,
+      createElement("summary", null, copy.summary),
       createElement(
         "ol",
         null,
         createElement(
           "li",
           null,
-          "先检查 AaaS MCP 工具：find_agent、agent_start、agent_continue、agent_end。",
+          copy.steps[0],
         ),
         createElement(
           "li",
           null,
-          "如果工具不存在，先征得用户同意，再安装消费者 Skill + MCP：",
+          copy.steps[1],
           createElement("code", null, AAAS_INSTALL_COMMAND),
         ),
         createElement(
           "li",
           null,
-          "安装后重启客户端即可使用 MCP；当前任务也可以按照机器清单中的 HTTP 流程立即调用。",
+          copy.steps[2],
         ),
       ),
       createElement(
@@ -125,7 +151,7 @@ export function AgentLinkInstructions({ agentId }) {
           className: "manifest-link",
           type: "application/aaas+json",
         },
-        "打开机器可读 Agent 清单 →",
+        copy.manifest,
       ),
     ),
     createElement("script", {

@@ -42,7 +42,7 @@ test("an Agent share page is visibly and machine-readably self-describing", () =
   );
 
   assert.match(html, /data-aaas-agent-id="agt_demo"/);
-  assert.match(html, /把这个链接直接粘贴给 Codex 或 Claude Code/);
+  assert.match(html, /把这个页面链接交给 Codex 或 Claude Code/);
   assert.match(html, /npx -y Equality-Machine\/agent-as-a-service/);
   assert.match(
     html,
@@ -51,4 +51,14 @@ test("an Agent share page is visibly and machine-readably self-describing", () =
   assert.match(html, /type="application\/aaas\+json"/);
   assert.match(html, /"runnerRequired":false/);
   assert.match(html, /先检查 AaaS MCP 工具/);
+});
+
+test("the visible handoff instructions support English", () => {
+  const html = renderToStaticMarkup(
+    AgentLinkInstructions({ agentId: "agt_demo", language: "en" }),
+  );
+
+  assert.match(html, /Give this page link to Codex or Claude Code/);
+  assert.match(html, /never need a Runner/);
+  assert.match(html, /How to install and use it/);
 });

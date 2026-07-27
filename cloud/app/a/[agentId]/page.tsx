@@ -12,9 +12,9 @@ export async function generateMetadata({
   const { agentId } = await params;
   const encodedAgentId = encodeURIComponent(agentId);
   return {
-    title: `${agentId} — AaaS Agent`,
+    title: `${agentId} — Shared Agent`,
     description:
-      "Open this Agent in the web, or paste the link into Codex or Claude Code.",
+      "Open this shared Agent on the web, or give the link to Codex or Claude Code.",
     alternates: {
       canonical: `/a/${encodedAgentId}`,
       types: {

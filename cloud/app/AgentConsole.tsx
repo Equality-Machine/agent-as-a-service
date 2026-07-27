@@ -1,9 +1,29 @@
 "use client";
 
+import {
+  ArrowDown,
+  ArrowRight,
+  CheckCircle,
+  Copy,
+  PaperPlaneTilt,
+  Plus,
+  SpinnerGap,
+} from "@phosphor-icons/react";
+import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { MessageMarkdown } from "./MessageMarkdown.mjs";
+import { NarrativeStory } from "./NarrativeStory";
 import { AgentLinkInstructions } from "./agent-link.mjs";
+import { PUBLIC_UI_COPY, type PublicLanguage } from "./ui-copy.mjs";
 
 type Agent = {
   id: string;
@@ -39,81 +59,548 @@ type Job = {
 const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-function describeJob(job: Job | null) {
-  if (!job) return "准备调用";
+const JOB_COPY = {
+  zh: {
+    ready: "准备开始",
+    queuedOffline: "服务暂时无法响应，任务仍在等待",
+    queued: "正在排队",
+    cancelled: "已取消",
+    failed: "执行失败",
+    completed: "已完成",
+    cancelling: "正在取消",
+    claimed: "已经开始处理",
+    loading_source: "正在准备 Agent",
+    starting_runtime: "正在启动",
+    running: "Agent 正在处理",
+    finalizing: "正在整理结果",
+  },
+  en: {
+    ready: "Ready",
+    queuedOffline: "The service is unavailable; your task is still waiting",
+    queued: "Waiting in the queue",
+    cancelled: "Cancelled",
+    failed: "Run failed",
+    completed: "Completed",
+    cancelling: "Cancelling",
+    claimed: "Work has started",
+    loading_source: "Preparing the Agent",
+    starting_runtime: "Starting",
+    running: "The Agent is working",
+    finalizing: "Finishing the response",
+  },
+} as const;
+
+function describeJob(job: Job | null, language: PublicLanguage) {
+  const copy = JOB_COPY[language];
+  if (!job) return copy.ready;
   if (job.status === "queued" && job.runnerAvailability === "offline") {
-    return "Runner 当前离线，任务仍在排队";
+    return copy.queuedOffline;
   }
-  if (job.status === "queued") return "排队等待 Runner";
-  if (job.status === "cancelled") return "调用已取消";
-  if (job.status === "failed") return "运行时执行失败";
-  if (job.status === "completed") return "执行完成";
-  if (job.cancelRequestedAt) return "正在取消运行时";
+  if (job.status === "queued") return copy.queued;
+  if (job.status === "cancelled") return copy.cancelled;
+  if (job.status === "failed") return copy.failed;
+  if (job.status === "completed") return copy.completed;
+  if (job.cancelRequestedAt) return copy.cancelling;
   const stages: Record<Job["stage"], string> = {
-    queued: "排队等待 Runner",
-    claimed: "Runner 已领取任务",
-    loading_source: "加载并校验 Agent 快照",
-    starting_runtime: "启动隔离运行时",
-    running: "Agent 执行中",
-    finalizing: "保存分支结果",
-    completed: "执行完成",
-    failed: "运行时执行失败",
-    cancelled: "调用已取消",
+    queued: copy.queued,
+    claimed: copy.claimed,
+    loading_source: copy.loading_source,
+    starting_runtime: copy.starting_runtime,
+    running: copy.running,
+    finalizing: copy.finalizing,
+    completed: copy.completed,
+    failed: copy.failed,
+    cancelled: copy.cancelled,
   };
-  return stages[job.stage] ?? "Runner 已领取任务";
+  return stages[job.stage] ?? copy.claimed;
+}
+
+function LanguageToggle({
+  language,
+  onChange,
+}: {
+  language: PublicLanguage;
+  onChange: () => void;
+}) {
+  const copy = PUBLIC_UI_COPY[language];
+  return (
+    <button
+      className="language-toggle"
+      type="button"
+      onClick={onChange}
+      aria-label={copy.nav.switchLanguage}
+    >
+      <span className={language === "zh" ? "active" : ""}>中</span>
+      <i />
+      <span className={language === "en" ? "active" : ""}>EN</span>
+    </button>
+  );
+}
+
+function SiteNav({
+  language,
+  onLanguageChange,
+  shareView,
+  onSwitchAgent,
+}: {
+  language: PublicLanguage;
+  onLanguageChange: () => void;
+  shareView: boolean;
+  onSwitchAgent?: () => void;
+}) {
+  const copy = PUBLIC_UI_COPY[language];
+  return (
+    <>
+      <a className="skip-link" href="#main-content">
+        {copy.nav.skipToContent}
+      </a>
+      <header className="site-nav">
+        <Link className="brand" href="/" aria-label="AaaS home">
+          <Image
+            src="/favicon.svg"
+            width={32}
+            height={32}
+            alt=""
+            priority
+            unoptimized
+          />
+          <span>{copy.nav.product}</span>
+        </Link>
+        <div className="nav-actions">
+          {shareView ? (
+            <button className="switch-agent" type="button" onClick={onSwitchAgent}>
+              {copy.share.switchAgent}
+            </button>
+          ) : (
+            <a className="nav-use-agent" href="#agent-entry">
+              {copy.nav.useAgent}
+            </a>
+          )}
+          <LanguageToggle language={language} onChange={onLanguageChange} />
+        </div>
+      </header>
+    </>
+  );
+}
+
+function AgentLookup({
+  language,
+  agentId,
+  lookupError,
+  busy,
+  onAgentIdChange,
+  onSubmit,
+  variant = "hero",
+}: {
+  language: PublicLanguage;
+  agentId: string;
+  lookupError: string;
+  busy: boolean;
+  onAgentIdChange: (id: string) => void;
+  onSubmit: () => void;
+  variant?: "hero" | "closing";
+}) {
+  const copy = PUBLIC_UI_COPY[language].home;
+  const inputId = variant === "hero" ? "agent-id" : "closing-agent-id";
+
+  return (
+    <form
+      className={`agent-lookup agent-lookup-${variant}`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+      noValidate
+    >
+      <div className="lookup-label-row">
+        <label htmlFor={inputId}>{copy.agentIdLabel}</label>
+        <span>{copy.agentIdHelper}</span>
+      </div>
+      <div className="lookup-control">
+        <input
+          id={inputId}
+          value={agentId}
+          onChange={(event) => onAgentIdChange(event.target.value)}
+          placeholder={copy.agentIdPlaceholder}
+          spellCheck={false}
+          autoComplete="off"
+          aria-describedby={`${inputId}-helper ${inputId}-error`}
+          aria-invalid={Boolean(lookupError)}
+        />
+        <button type="submit" disabled={busy || !agentId.trim()}>
+          {busy ? (
+            <SpinnerGap className="spinner" aria-hidden="true" />
+          ) : (
+            <ArrowRight aria-hidden="true" />
+          )}
+          <span>{busy ? copy.openingAgent : copy.openAgent}</span>
+        </button>
+      </div>
+      <div className="lookup-foot">
+        <span id={`${inputId}-helper`}>{copy.missingId}</span>
+        <span
+          className="lookup-error"
+          id={`${inputId}-error`}
+          role={lookupError ? "alert" : undefined}
+          aria-live="polite"
+        >
+          {lookupError}
+        </span>
+      </div>
+    </form>
+  );
+}
+
+function HomeExperience({
+  language,
+  agentId,
+  lookupError,
+  lookupBusy,
+  onAgentIdChange,
+  onFindAgent,
+}: {
+  language: PublicLanguage;
+  agentId: string;
+  lookupError: string;
+  lookupBusy: boolean;
+  onAgentIdChange: (id: string) => void;
+  onFindAgent: () => void;
+}) {
+  const copy = PUBLIC_UI_COPY[language];
+  return (
+    <>
+      <section className="cinematic-hero" id="agent-entry">
+        <div className="hero-content">
+          <span className="hero-eyebrow">{copy.home.eyebrow}</span>
+          <h1>{copy.home.title}</h1>
+          <p>{copy.home.description}</p>
+          <AgentLookup
+            language={language}
+            agentId={agentId}
+            lookupError={lookupError}
+            busy={lookupBusy}
+            onAgentIdChange={onAgentIdChange}
+            onSubmit={onFindAgent}
+          />
+          <a className="story-link" href="#story-title">
+            <span>{copy.home.storyEyebrow}</span>
+            <ArrowDown aria-hidden="true" />
+          </a>
+        </div>
+        <div className="hero-agent-preview" aria-hidden="true">
+          <header>
+            <div className="story-avatar">A</div>
+            <div>
+              <small>{language === "zh" ? "已分享的 Agent" : "A shared Agent"}</small>
+              <strong>Research Agent</strong>
+            </div>
+            <span>{language === "zh" ? "可以开始" : "Ready"}</span>
+          </header>
+          {copy.story[0].cards?.slice(0, 3).map((item) => (
+            <div className="preview-row" key={item}>
+              <CheckCircle weight="fill" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <NarrativeStory language={language} />
+
+      <section className="closing-cta" aria-labelledby="closing-title">
+        <div>
+          <span>{copy.home.eyebrow}</span>
+          <h2 id="closing-title">{copy.home.closingTitle}</h2>
+          <p>{copy.home.closingBody}</p>
+        </div>
+        <AgentLookup
+          language={language}
+          agentId={agentId}
+          lookupError={lookupError}
+          busy={lookupBusy}
+          onAgentIdChange={onAgentIdChange}
+          onSubmit={onFindAgent}
+          variant="closing"
+        />
+      </section>
+    </>
+  );
+}
+
+function ShareLoading({
+  language,
+  agentId,
+  lookupError,
+  onRetry,
+  onSwitchAgent,
+}: {
+  language: PublicLanguage;
+  agentId: string;
+  lookupError: string;
+  onRetry: () => void;
+  onSwitchAgent: () => void;
+}) {
+  const copy = PUBLIC_UI_COPY[language].share;
+  return (
+    <main className="share-loading" id="main-content">
+      <SpinnerGap className="spinner" aria-hidden="true" />
+      <h1>{lookupError || copy.loading}</h1>
+      <p>{agentId}</p>
+      {lookupError ? (
+        <div>
+          <button type="button" onClick={onRetry}>
+            {language === "zh" ? "重试" : "Try again"}
+          </button>
+          <button type="button" onClick={onSwitchAgent}>
+            {copy.switchAgent}
+          </button>
+        </div>
+      ) : null}
+    </main>
+  );
+}
+
+function AgentExperience({
+  language,
+  agent,
+  conversationId,
+  messages,
+  input,
+  busy,
+  currentJob,
+  copied,
+  onCopyAgentId,
+  onInputChange,
+  onSubmit,
+  onCancel,
+  onNewConversation,
+}: {
+  language: PublicLanguage;
+  agent: Agent;
+  conversationId: string;
+  messages: Message[];
+  input: string;
+  busy: boolean;
+  currentJob: Job | null;
+  copied: boolean;
+  onCopyAgentId: () => void;
+  onInputChange: (value: string) => void;
+  onSubmit: (event: FormEvent) => void;
+  onCancel: () => void;
+  onNewConversation: () => void;
+}) {
+  const copy = PUBLIC_UI_COPY[language].share;
+  const chatEnd = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEnd.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [messages, busy, currentJob]);
+
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  };
+
+  return (
+    <main className="shared-agent-main" id="main-content">
+      <section className="agent-hero-band">
+        <div className="agent-profile">
+          <span className="hero-eyebrow">{copy.eyebrow}</span>
+          <h1>{agent.name}</h1>
+          <p>{agent.description || copy.descriptionFallback}</p>
+          <div className="agent-identity-row">
+            <span className={`availability availability-${agent.availability}`}>
+              <i />
+              {agent.availability === "online" ? copy.online : copy.offline}
+            </span>
+            <button type="button" onClick={onCopyAgentId} className="copy-agent-id">
+              <Copy aria-hidden="true" />
+              <span>{agent.id}</span>
+              <strong>{copied ? copy.copied : copy.copyAgentId}</strong>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="conversation-shell" aria-labelledby="conversation-title">
+        <header className="conversation-heading">
+          <div>
+            <span>{copy.privateNote}</span>
+            <h2 id="conversation-title">{copy.promptLabel}</h2>
+            <p>{copy.promptHelper}</p>
+          </div>
+          <button
+            className="new-conversation"
+            type="button"
+            onClick={onNewConversation}
+            disabled={busy}
+          >
+            <Plus aria-hidden="true" />
+            <span>{copy.newConversation}</span>
+          </button>
+        </header>
+
+        <div className="messages" aria-live="polite" aria-busy={busy}>
+          {messages.length === 0 ? (
+            <div className="empty-chat">
+              <div className="empty-chat-icon">
+                <PaperPlaneTilt weight="duotone" aria-hidden="true" />
+              </div>
+              <strong>{copy.emptyTitle}</strong>
+              <p>{copy.emptyBody}</p>
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <div className={`message ${message.role}`} key={`${index}-${message.role}`}>
+                <span>{message.role === "user" ? (language === "zh" ? "你" : "You") : "A"}</span>
+                <MessageMarkdown content={message.content} />
+              </div>
+            ))
+          )}
+          {busy && messages.length > 0 ? (
+            <div className="message assistant">
+              <span>A</span>
+              <div className="job-progress">
+                <div>
+                  <i className={`job-dot ${currentJob?.status ?? "queued"}`} />
+                  <strong>{describeJob(currentJob, language)}</strong>
+                </div>
+                <small>{currentJob?.stage ?? "queued"}</small>
+                <button type="button" onClick={onCancel}>
+                  {copy.cancel}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <div ref={chatEnd} />
+        </div>
+
+        <form className="composer" onSubmit={onSubmit}>
+          <label htmlFor="agent-message" className="sr-only">
+            {copy.promptLabel}
+          </label>
+          <textarea
+            id="agent-message"
+            value={input}
+            disabled={busy}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
+            placeholder={copy.promptPlaceholder}
+            rows={2}
+          />
+          <button disabled={busy || !input.trim()} aria-label={copy.send}>
+            {busy ? (
+              <SpinnerGap className="spinner" aria-hidden="true" />
+            ) : (
+              <PaperPlaneTilt weight="fill" aria-hidden="true" />
+            )}
+            <span>{copy.send}</span>
+          </button>
+        </form>
+        <footer className="conversation-footer">
+          <span>{copy.privateNote}</span>
+          <span>
+            {conversationId
+              ? `${copy.agentIdLabel}: ${agent.id} · ${conversationId}`
+              : copy.notStarted}
+          </span>
+        </footer>
+      </section>
+
+      <AgentLinkInstructions agentId={agent.id} language={language} />
+    </main>
+  );
 }
 
 export function AgentConsole({ initialAgentId = "" }: { initialAgentId?: string }) {
+  const [language, setLanguage] = useState<PublicLanguage>("zh");
   const [agentId, setAgentId] = useState(initialAgentId);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [lookupError, setLookupError] = useState("");
+  const [lookupBusy, setLookupBusy] = useState(Boolean(initialAgentId));
   const [conversationId, setConversationId] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [currentJobId, setCurrentJobId] = useState("");
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
-  const chatEnd = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, busy, currentJob]);
+  const copy = PUBLIC_UI_COPY[language].share;
 
-  const findAgent = useCallback(async (id: string) => {
+  const findAgent = useCallback(async (id: string, updateHistory = true) => {
     const cleanId = id.trim();
     if (!cleanId) return;
     setLookupError("");
-    setBusy(true);
+    setLookupBusy(true);
     try {
       const response = await fetch(`/api/v1/agents/${encodeURIComponent(cleanId)}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Agent not found");
+      setAgentId(cleanId);
       setAgent(data.agent);
       setConversationId("");
       setMessages([]);
       setCurrentJob(null);
-      window.history.replaceState(
-        {},
-        "",
-        `/a/${encodeURIComponent(cleanId)}`,
-      );
+      if (updateHistory) {
+        window.history.pushState({}, "", `/a/${encodeURIComponent(cleanId)}`);
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       setAgent(null);
       setLookupError((error as Error).message);
     } finally {
-      setBusy(false);
+      setLookupBusy(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("aaas-language");
+    const preferred =
+      saved === "zh" || saved === "en"
+        ? saved
+        : navigator.language.toLowerCase().startsWith("zh")
+          ? "zh"
+          : "en";
+    setLanguage(preferred);
   }, []);
 
   useEffect(() => {
     const id =
       initialAgentId ||
-      new URLSearchParams(window.location.search).get("agent");
-    if (id) {
-      setAgentId(id);
-      void findAgent(id);
-    }
+      new URLSearchParams(window.location.search).get("agent") ||
+      "";
+    if (id) void findAgent(id, false);
+    else setLookupBusy(false);
   }, [findAgent, initialAgentId]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const match = window.location.pathname.match(/^\/a\/([^/]+)$/);
+      if (match) {
+        const id = decodeURIComponent(match[1]);
+        setAgentId(id);
+        void findAgent(id, false);
+      } else {
+        setAgent(null);
+        setAgentId("");
+        setLookupError("");
+        setConversationId("");
+        setMessages([]);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [findAgent]);
+
+  const toggleLanguage = () => {
+    const next = language === "zh" ? "en" : "zh";
+    setLanguage(next);
+    window.localStorage.setItem("aaas-language", next);
+    document.documentElement.lang = next === "zh" ? "zh-CN" : "en";
+  };
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -168,19 +655,23 @@ export function AgentConsole({ initialAgentId = "" }: { initialAgentId?: string 
         if (lastJob.status === "cancelled") {
           setMessages((current) => [
             ...current,
-            { role: "assistant", content: "本次调用已取消。" },
+            { role: "assistant", content: copy.cancelled },
           ]);
           return;
         }
       }
       await fetch(`/api/v1/jobs/${queued.jobId}/cancel`, { method: "POST" });
-      throw new Error(`等待超过 10 分钟，已请求取消；最后阶段：${describeJob(lastJob)}`);
+      throw new Error(
+        language === "zh"
+          ? `等待超过 10 分钟，已请求取消；最后状态：${describeJob(lastJob, language)}`
+          : `The wait exceeded 10 minutes, so cancellation was requested. Last status: ${describeJob(lastJob, language)}`,
+      );
     } catch (error) {
       setMessages((current) => [
         ...current,
         {
           role: "assistant",
-          content: `调用失败（${describeJob(lastJob)}）：${(error as Error).message}`,
+          content: `${copy.callFailed} (${describeJob(lastJob, language)}): ${(error as Error).message}`,
         },
       ]);
     } finally {
@@ -199,7 +690,10 @@ export function AgentConsole({ initialAgentId = "" }: { initialAgentId?: string 
     if (!response.ok) {
       setMessages((current) => [
         ...current,
-        { role: "assistant", content: `取消失败：${result.error ?? "Unknown error"}` },
+        {
+          role: "assistant",
+          content: `${copy.cancelFailed}: ${result.error ?? "Unknown error"}`,
+        },
       ]);
       return;
     }
@@ -225,176 +719,71 @@ export function AgentConsole({ initialAgentId = "" }: { initialAgentId?: string 
     setConversationId("");
     setMessages([]);
     setCurrentJob(null);
+    setInput("");
   }
 
+  async function switchAgent() {
+    await newConversation();
+    setAgent(null);
+    setAgentId("");
+    setLookupError("");
+    window.history.pushState({}, "", "/");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function copyAgentId() {
+    if (!agent) return;
+    await navigator.clipboard.writeText(agent.id);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  const shareView = Boolean(initialAgentId || agent);
+
   return (
-    <main>
-      <nav className="nav">
-        <Link className="brand" href="/">
-          <span className="brand-mark">A</span>
-          <span>AaaS</span>
-        </Link>
-        <div className="nav-status">
-          <span className="pulse" />
-          Control plane online
-        </div>
-      </nav>
-
-      <section className="hero">
-        <div className="eyebrow">AGENT AS A SERVICE</div>
-        <h1>
-          一个 ID，继续使用
-          <br />
-          <span>另一个人的 Agent。</span>
-        </h1>
-        <p>
-          发布者的原始 Session 保持冻结、私有、不被写入。每位调用者都从同一能力快照
-          Fork 出自己的连续对话。
-        </p>
-        <div className="lookup">
-          <label htmlFor="agent-id">Agent ID</label>
-          <div className="lookup-row">
-            <input
-              id="agent-id"
-              value={agentId}
-              onChange={(event) => setAgentId(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void findAgent(agentId);
-              }}
-              placeholder="agt_7f2c9a3e..."
-              spellCheck={false}
-            />
-            <button onClick={() => void findAgent(agentId)} disabled={busy}>
-              查找 Agent
-              <span>→</span>
-            </button>
-          </div>
-          {lookupError ? <div className="lookup-error">{lookupError}</div> : null}
-        </div>
-      </section>
-
-      {agentId.trim() ? (
-        <AgentLinkInstructions agentId={agentId.trim()} />
-      ) : null}
-
-      <section className="workspace">
-        <aside className="explain">
-          <div className="step">
-            <span>01</span>
-            <div>
-              <strong>冻结发布</strong>
-              <p>发布时生成不可变 AgentVersion，不暴露本地路径。</p>
-            </div>
-          </div>
-          <div className="line" />
-          <div className="step">
-            <span>02</span>
-            <div>
-              <strong>独立 Fork</strong>
-              <p>每次 New conversation 都创建新的 Conversation。</p>
-            </div>
-          </div>
-          <div className="line" />
-          <div className="step">
-            <span>03</span>
-            <div>
-              <strong>云端中转</strong>
-              <p>Job/Lease 发往本地 Runner 或服务器 Runner。</p>
-            </div>
-          </div>
-        </aside>
-
-        <div className={`console ${agent ? "console-active" : ""}`}>
-          {agent ? (
-            <>
-              <header className="agent-header">
-                <div className="avatar">{agent.name.slice(0, 1).toUpperCase()}</div>
-                <div>
-                  <h2>{agent.name}</h2>
-                  <div className="agent-meta">
-                    <span>{agent.provider}</span>
-                    <span>·</span>
-                    <span>{agent.executionMode} runner</span>
-                    <span className={agent.availability}>{agent.availability}</span>
-                  </div>
-                </div>
-                <button className="new-chat" onClick={() => void newConversation()}>
-                  + New conversation
-                </button>
-              </header>
-              <div className="agent-description">{agent.description}</div>
-              <div className="messages">
-                {messages.length === 0 ? (
-                  <div className="empty-chat">
-                    <div className="empty-orbit">✦</div>
-                    <strong>这个分支还没有消息</strong>
-                    <p>发送第一条消息后，Runner 会从冻结快照创建全新的运行时 Session。</p>
-                  </div>
-                ) : (
-                  messages.map((message, index) => (
-                    <div className={`message ${message.role}`} key={`${index}-${message.role}`}>
-                      <span>{message.role === "user" ? "You" : "A"}</span>
-                      <MessageMarkdown content={message.content} />
-                    </div>
-                  ))
-                )}
-                {busy && messages.length > 0 ? (
-                  <div className="message assistant">
-                    <span>A</span>
-                    <div className="job-progress">
-                      <div>
-                        <i className={`job-dot ${currentJob?.status ?? "queued"}`} />
-                        <strong>{describeJob(currentJob)}</strong>
-                      </div>
-                      <small>
-                        {currentJob?.stage ?? "queued"} ·{" "}
-                        {currentJob?.runnerAvailability ?? agent.availability}
-                      </small>
-                      <button type="button" onClick={() => void cancelCurrentJob()}>
-                        取消调用
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-                <div ref={chatEnd} />
-              </div>
-              <form className="composer" onSubmit={submit}>
-                <textarea
-                  value={input}
-                  disabled={busy}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                  placeholder="给这个 Agent 发消息…"
-                  rows={2}
-                />
-                <button disabled={busy || !input.trim()} aria-label="发送">
-                  ↑
-                </button>
-              </form>
-              <footer>
-                Conversation {conversationId || "not started"} ·{" "}
-                {currentJob ? describeJob(currentJob) : "Source session stays immutable"}
-              </footer>
-            </>
-          ) : (
-            <div className="console-placeholder">
-              <div className="grid-icon">
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-              <h2>输入 Agent ID 开始</h2>
-              <p>你会得到一条新的、持续的分支，不会进入发布者的原对话。</p>
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
+    <>
+      <SiteNav
+        language={language}
+        onLanguageChange={toggleLanguage}
+        shareView={shareView}
+        onSwitchAgent={() => void switchAgent()}
+      />
+      {agent ? (
+        <AgentExperience
+          language={language}
+          agent={agent}
+          conversationId={conversationId}
+          messages={messages}
+          input={input}
+          busy={busy}
+          currentJob={currentJob}
+          copied={copied}
+          onCopyAgentId={() => void copyAgentId()}
+          onInputChange={setInput}
+          onSubmit={submit}
+          onCancel={() => void cancelCurrentJob()}
+          onNewConversation={() => void newConversation()}
+        />
+      ) : shareView ? (
+        <ShareLoading
+          language={language}
+          agentId={agentId}
+          lookupError={lookupError}
+          onRetry={() => void findAgent(agentId, false)}
+          onSwitchAgent={() => void switchAgent()}
+        />
+      ) : (
+        <main id="main-content">
+          <HomeExperience
+            language={language}
+            agentId={agentId}
+            lookupError={lookupError}
+            lookupBusy={lookupBusy}
+            onAgentIdChange={setAgentId}
+            onFindAgent={() => void findAgent(agentId)}
+          />
+        </main>
+      )}
+    </>
   );
 }
