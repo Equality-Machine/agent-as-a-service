@@ -191,6 +191,11 @@ against `agt_14b2806758a042db`. It completed `agent_start → agent_continue →
 agent_end` in one Conversation and confirmed the immutable source digest was
 unchanged (1 passed, 0 failed).
 
+After the repository became public, the gated distribution test downloaded
+`install.sh` from GitHub Raw, cloned `Equality-Machine/agent-as-a-service` into
+an isolated temporary HOME, registered a fake Codex client as a consumer, and
+confirmed that no Runner state was created (1 passed, 0 failed).
+
 `cd cloud && npm test` builds the Sites worker and validates the public UI/API
 surface. Both cloud tests passed. `cd cloud && npm run lint` also passed with no
 warnings or errors.
