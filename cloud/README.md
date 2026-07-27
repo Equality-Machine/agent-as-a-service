@@ -13,7 +13,11 @@
 - Runner 通过心跳续期短租约；失联任务可恢复而不会长期伪装成“执行中”；
 - D1 保存元数据、Conversation 和任务状态；
 - R2 只保存 cloud 模式下的 AES-256-GCM 加密 Source Capsule；
-- 提供网页、HTTP API 和 MCP/Skill 所需的调用面。
+- 提供网页、HTTP API 和 MCP/Skill 所需的调用面；
+- 用 GitHub Flavored Markdown 渲染消息，并安全加载 HTTP(S) 或相对路径图片；
+- 为 `/a/{agentId}` 分享页提供可见配置说明、嵌入式
+  `application/aaas+json` 和独立 manifest，使 Codex / Claude Code 能从一条
+  链接完成发现、按需安装与调用。
 
 控制面不会返回发布者 Session 路径、原始 transcript、Runner token 或 Provider
 child session ID。

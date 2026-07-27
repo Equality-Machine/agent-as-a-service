@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { MessageMarkdown } from "./MessageMarkdown.mjs";
+import { AgentLinkInstructions } from "./agent-link.mjs";
 
 type Agent = {
   id: string;
@@ -61,8 +63,8 @@ function describeJob(job: Job | null) {
   return stages[job.stage] ?? "Runner 已领取任务";
 }
 
-export function AgentConsole() {
-  const [agentId, setAgentId] = useState("");
+export function AgentConsole({ initialAgentId = "" }: { initialAgentId?: string }) {
+  const [agentId, setAgentId] = useState(initialAgentId);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [lookupError, setLookupError] = useState("");
   const [conversationId, setConversationId] = useState("");
@@ -90,7 +92,11 @@ export function AgentConsole() {
       setConversationId("");
       setMessages([]);
       setCurrentJob(null);
-      window.history.replaceState({}, "", `/?agent=${encodeURIComponent(cleanId)}`);
+      window.history.replaceState(
+        {},
+        "",
+        `/a/${encodeURIComponent(cleanId)}`,
+      );
     } catch (error) {
       setAgent(null);
       setLookupError((error as Error).message);
@@ -100,12 +106,14 @@ export function AgentConsole() {
   }, []);
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("agent");
+    const id =
+      initialAgentId ||
+      new URLSearchParams(window.location.search).get("agent");
     if (id) {
       setAgentId(id);
       void findAgent(id);
     }
-  }, [findAgent]);
+  }, [findAgent, initialAgentId]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -265,6 +273,10 @@ export function AgentConsole() {
         </div>
       </section>
 
+      {agentId.trim() ? (
+        <AgentLinkInstructions agentId={agentId.trim()} />
+      ) : null}
+
       <section className="workspace">
         <aside className="explain">
           <div className="step">
@@ -322,7 +334,7 @@ export function AgentConsole() {
                   messages.map((message, index) => (
                     <div className={`message ${message.role}`} key={`${index}-${message.role}`}>
                       <span>{message.role === "user" ? "You" : "A"}</span>
-                      <p>{message.content}</p>
+                      <MessageMarkdown content={message.content} />
                     </div>
                   ))
                 )}

@@ -200,6 +200,87 @@ button {
   font-size: 14px;
 }
 
+.agent-link-instructions {
+  max-width: 1136px;
+  margin: -38px auto 54px;
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 24px;
+  border: 1px solid var(--ink);
+  border-radius: 16px;
+  background: var(--orange-soft);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.agent-link-kicker {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--orange);
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+.agent-link-copy h2 {
+  margin: 0 0 7px;
+  font-size: 19px;
+  letter-spacing: -0.025em;
+}
+
+.agent-link-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.agent-link-instructions details {
+  padding: 11px 13px;
+  border: 1px solid rgba(20, 21, 19, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 254, 250, 0.72);
+}
+
+.agent-link-instructions summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.agent-link-instructions ol {
+  margin: 10px 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.agent-link-instructions code {
+  display: block;
+  margin-top: 6px;
+  padding: 7px 9px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--ink);
+  color: white;
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.manifest-link {
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.manifest-link:hover {
+  text-decoration: underline;
+}
+
 .workspace {
   max-width: 1200px;
   margin: 0 auto 96px;
@@ -423,16 +504,89 @@ button {
   font-size: 10px;
 }
 
-.message p {
+.message-markdown {
   width: fit-content;
   max-width: 88%;
-  margin: 0;
   padding: 10px 13px;
   border-radius: 4px 12px 12px 12px;
   background: var(--paper);
   font-size: 14px;
   line-height: 1.65;
-  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-markdown > :first-child {
+  margin-top: 0;
+}
+
+.message-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.message-markdown p,
+.message-markdown ul,
+.message-markdown ol,
+.message-markdown blockquote,
+.message-markdown pre,
+.message-markdown table {
+  margin: 0.65em 0;
+}
+
+.message-markdown ul,
+.message-markdown ol {
+  padding-left: 1.4em;
+}
+
+.message-markdown pre {
+  max-width: 100%;
+  padding: 10px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: #e8e6df;
+}
+
+.message-markdown code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.9em;
+}
+
+.message-markdown :not(pre) > code {
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: #e8e6df;
+}
+
+.message-markdown blockquote {
+  padding-left: 0.85em;
+  border-left: 3px solid var(--orange);
+  color: var(--muted);
+}
+
+.message-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.message-markdown th,
+.message-markdown td {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.message-markdown img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 520px;
+  margin: 0.75em 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  object-fit: contain;
+  background: white;
 }
 
 .message.user {
@@ -443,13 +597,18 @@ button {
   grid-column: 2;
 }
 
-.message.user p {
+.message.user .message-markdown {
   grid-column: 1;
   grid-row: 1;
   margin-left: auto;
   border-radius: 12px 4px 12px 12px;
   background: var(--ink);
   color: white;
+}
+
+.message.user .message-markdown pre,
+.message.user .message-markdown :not(pre) > code {
+  background: #30312e;
 }
 
 .thinking {
@@ -569,6 +728,12 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .agent-link-instructions {
+    margin-left: 32px;
+    margin-right: 32px;
+    grid-template-columns: 1fr;
+  }
+
   .explain {
     display: none;
   }
@@ -587,6 +752,11 @@ button {
   .workspace {
     padding-left: 18px;
     padding-right: 18px;
+  }
+
+  .agent-link-instructions {
+    margin: -34px 18px 46px;
+    padding: 16px;
   }
 
   .lookup-row {

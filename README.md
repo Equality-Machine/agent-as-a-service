@@ -62,8 +62,17 @@ npx -y Equality-Machine/agent-as-a-service publisher
 
 ```text
 Agent ID: agt_...
-Web URL: https://.../?agent=agt_...
+Web URL: https://aaas-agent-service.b4yesc4t.chatgpt.site/a/agt_...
 ```
+
+这个 URL 本身就是可消费的 Agent 链接。新用户可以直接在网页打开，也可以把
+整条链接粘贴给 Codex 或 Claude Code。分享页会显式展示消费者安装步骤，并在
+HTML、`<link rel="alternate">` 和
+`/api/v1/agents/{agentId}/manifest` 中提供机器可读的
+`application/aaas+json` 清单。Agent 会先检查 AaaS MCP；缺失时征得用户同意，
+再运行 `npx -y Equality-Machine/agent-as-a-service` 安装 Skill + MCP。消费
+别人的 Agent 永远不需要 Runner；安装后重启客户端可使用 MCP，当前任务也能按
+清单中的 HTTP fallback 立即调用。
 
 Codex 发布时使用 `CODEX_THREAD_ID` 精确定位当前任务；Claude Code 会选择当前
 项目的 Session。若无法唯一定位，Skill 必须让用户明确提供 Session ID，不会
@@ -82,8 +91,10 @@ export ANTHROPIC_MODEL=qwen3.7-max
 本项目已用临时环境完成真实 Claude 历史的 Fork、Continuation 和来源摘要不变
 验收；详见验证文档。
 
-网页用户无需安装任何内容，可以直接把 Agent ID 粘贴到
-[生产网页](https://aaas-agent-service.b4yesc4t.chatgpt.site)。
+网页用户无需安装任何内容，可以直接打开分享链接或把 Agent ID 粘贴到
+[生产网页](https://aaas-agent-service.b4yesc4t.chatgpt.site)。Agent 回复按
+GitHub Flavored Markdown 渲染，支持标题、列表、引用、表格、代码、链接以及
+HTTP(S)/相对路径图片；不安全的 `data:` 图片不会加载。
 
 ## 两种执行模式
 

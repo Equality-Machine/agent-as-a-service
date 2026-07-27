@@ -18,25 +18,41 @@ credentials stay on the Runner machine.
 Consumer (default, Skill + MCP only, no Runner):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh | bash
+npx -y Equality-Machine/agent-as-a-service
 ```
 
 Publisher (Skill + MCP + persistent local Runner):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
-  bash -s -- --role publisher
+npx -y Equality-Machine/agent-as-a-service publisher
 ```
 
 Server Runner:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
-  bash -s -- --role runner
+npx -y Equality-Machine/agent-as-a-service runner
 ```
 
 A consumer can be promoted on demand. Before a local publication, call
 `runner_status`; after explicit user confirmation, call `install_local_runner`.
+Only publishers and dedicated execution hosts need a Runner.
+
+## Self-describing Agent links
+
+The canonical share URL is `https://YOUR-SITE.example/a/agt_...`. A Codex or
+Claude Code user can paste the whole URL into a task. The page contains visible
+setup instructions, an `application/aaas+json` script block, and an alternate
+manifest at `/api/v1/agents/{agentId}/manifest`.
+
+When handling that link:
+
+1. Check for `find_agent`, `agent_start`, `agent_continue`, and `agent_end`.
+2. If unavailable, ask before running the consumer installation command above.
+3. Never install a Runner just to consume the Agent.
+4. After the client restarts, use the MCP flow. If the new MCP is not visible
+   in the current task, follow the manifest's HTTP fallback immediately.
+5. Preserve the returned `conversationId` across follow-up turns and call
+   `agent_end` when finished.
 
 ## Manual installation
 
@@ -65,9 +81,10 @@ AAAS_CLOUD_URL=https://YOUR-SITE.example \
   node /ABSOLUTE/PATH/TO/AaaS/src/cloud-runner-cli.mjs
 ```
 
-The MCP process starts the Runner after publishing, so the daemon is optional
-only for low-level/manual use. The published Skill requires a persistent Runner
-so the Agent remains available after the client exits.
+Publishing only freezes and registers the AgentVersion. The publisher MCP never
+consumes Jobs and never starts a temporary Runner. A persistent LaunchAgent,
+systemd service, container, or manually supervised Runner must be running for a
+published Agent to remain available after the client exits.
 
 ## Cloud Runner pairing
 

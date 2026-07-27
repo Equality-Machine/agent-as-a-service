@@ -179,7 +179,7 @@ export class Publisher {
       ...published.agent,
       sourceHandle: source.handle,
       runnerId: runner.id,
-      shareUrl: `${this.cloud.baseUrl}/?agent=${encodeURIComponent(
+      shareUrl: `${this.cloud.baseUrl}/a/${encodeURIComponent(
         published.agent.id,
       )}`,
       publishedAt: new Date().toISOString(),

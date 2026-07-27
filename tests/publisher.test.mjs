@@ -83,5 +83,5 @@ test("publisher freezes the current Codex session and publishes only an opaque h
   assert.equal(cloudPayload.sourceDigest, localSource.digest);
   assert.ok(!JSON.stringify(cloudPayload).includes(sourcePath));
   assert.ok(!JSON.stringify(cloudPayload).includes("turn-publishing-now"));
-  assert.equal(published.shareUrl, "https://aaas.example/?agent=agt_test");
+  assert.equal(published.shareUrl, "https://aaas.example/a/agt_test");
 });

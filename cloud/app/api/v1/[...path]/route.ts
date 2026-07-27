@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { buildAgentManifest } from "../../../agent-link.mjs";
 
 export const runtime = "edge";
 
@@ -24,6 +25,16 @@ const JOB_STAGES = new Set([
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: corsHeaders });
+}
+
+function agentManifest(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "content-type": "application/aaas+json; charset=utf-8",
+    },
+  });
 }
 
 function database() {
@@ -255,6 +266,8 @@ async function publish(request: Request) {
       ),
   ]);
 
+  const origin = new URL(request.url).origin;
+  const manifest = buildAgentManifest({ agentId, origin });
   return json(
     {
       agent: {
@@ -265,6 +278,8 @@ async function publish(request: Request) {
         provider,
         executionMode,
         status: "active",
+        shareUrl: manifest.shareUrl,
+        manifestUrl: manifest.manifestUrl,
       },
       runnerId,
     },
@@ -272,8 +287,8 @@ async function publish(request: Request) {
   );
 }
 
-async function getAgent(agentId: string) {
-  const row = await database()
+async function findPublicAgent(agentId: string) {
+  return database()
     .prepare(
       `SELECT a.id, a.version_id, a.name, a.description, a.provider,
               a.execution_mode, a.status, a.created_at,
@@ -287,8 +302,22 @@ async function getAgent(agentId: string) {
     )
     .bind(agentId)
     .first<Record<string, unknown>>();
+}
+
+async function getAgent(agentId: string) {
+  const row = await findPublicAgent(agentId);
   if (!row) return json({ error: "Agent not found" }, 404);
   return json({ agent: publicAgent(row) });
+}
+
+async function getAgentManifest(request: Request, agentId: string) {
+  const row = await findPublicAgent(agentId);
+  if (!row) return json({ error: "Agent not found" }, 404);
+  const origin = new URL(request.url).origin;
+  return agentManifest({
+    ...buildAgentManifest({ agentId, origin }),
+    agent: publicAgent(row),
+  });
 }
 
 async function invoke(request: Request) {
@@ -725,7 +754,20 @@ async function route(request: Request) {
   if (method === "POST" && path[0] === "publish" && path.length === 1) {
     return publish(request);
   }
-  if (method === "GET" && path[0] === "agents" && path[1]) {
+  if (
+    method === "GET" &&
+    path[0] === "agents" &&
+    path[1] &&
+    path[2] === "manifest"
+  ) {
+    return getAgentManifest(request, path[1]);
+  }
+  if (
+    method === "GET" &&
+    path[0] === "agents" &&
+    path[1] &&
+    path.length === 2
+  ) {
     return getAgent(path[1]);
   }
   if (method === "POST" && path[0] === "invoke" && path.length === 1) {

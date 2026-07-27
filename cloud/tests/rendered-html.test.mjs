@@ -11,7 +11,7 @@ test("cloud app exposes an Agent-ID-first fork-safe console", async () => {
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /<AgentConsole \/>/);
+  assert.match(page, /<AgentConsole /);
   assert.match(consoleSource, /Agent ID/);
   assert.match(consoleSource, /\/api\/v1\/agents\//);
   assert.match(consoleSource, /\/api\/v1\/invoke/);
@@ -37,6 +37,7 @@ test("cloud API implements publish, lookup, invoke, leases, and branch end", asy
   for (const contract of [
     "publish(request)",
     "getAgent(path[1])",
+    "getAgentManifest(request, path[1])",
     "invoke(request)",
     "nextJob(request, path[1])",
     "heartbeatJob(request, path[1], path[3])",
@@ -54,5 +55,24 @@ test("cloud API implements publish, lookup, invoke, leases, and branch end", asy
   assert.match(api, /cancel_requested_at/);
   assert.match(api, /loading_source/);
   assert.match(api, /starting_runtime/);
+  assert.match(api, /application\/aaas\+json/);
+  assert.match(api, /shareUrl: manifest\.shareUrl/);
+  assert.match(api, /manifestUrl: manifest\.manifestUrl/);
   assert.doesNotMatch(api, /source_path|session_path|transcript/);
+});
+
+test("canonical and legacy Agent links render the self-describing handoff", async () => {
+  const [home, agentPage, consoleSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/a/[agentId]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/AgentConsole.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(home, /searchParams/);
+  assert.match(home, /initialAgentId/);
+  assert.match(agentPage, /generateMetadata/);
+  assert.match(agentPage, /application\/aaas\+json/);
+  assert.match(agentPage, /initialAgentId=\{agentId\}/);
+  assert.match(consoleSource, /AgentLinkInstructions/);
+  assert.match(consoleSource, /\/a\/\$\{encodeURIComponent\(cleanId\)\}/);
 });
