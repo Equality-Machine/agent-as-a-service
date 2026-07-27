@@ -1,6 +1,6 @@
 {
   "name": "@efflora/aaas",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Publish Codex and Claude sessions as fork-safe Agent services.",
   "private": false,
   "type": "module",

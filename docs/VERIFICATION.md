@@ -218,8 +218,8 @@ Runner hot enrollment:
 `npm test` on 2026-07-27:
 
 ```text
-34 tests
-29 passed
+35 tests
+30 passed
 5 skipped (2 live-provider + production Runner + 2 post-publish installers)
 0 failed
 ```
@@ -248,6 +248,7 @@ Coverage includes:
   post-completion lease requests.
 - npm package packing and a real `npx` execution from the produced tarball;
 - stable Skill/MCP runtime materialization outside the disposable `npx` cache.
+- broken PATH Codex detection and automatic fallback to a working app binary.
 
 The real isolated Codex test also ran separately after the change:
 

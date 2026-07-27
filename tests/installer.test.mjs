@@ -124,6 +124,73 @@ printf '%s\\n' "$*" >> "$AAAS_TEST_LOG"
   );
 });
 
+test("consumer installation skips a broken PATH Codex and uses the app fallback", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "aaas-broken-codex-home-"));
+  const brokenCodex = path.join(home, "codex");
+  const appCodex = path.join(home, "app-codex");
+  const log = path.join(home, "app-codex.log");
+  await writeFile(
+    brokenCodex,
+    `#!/bin/sh
+printf '%s\\n' "missing native Codex executable: ENOENT" >&2
+exit 1
+`,
+  );
+  await writeFile(
+    appCodex,
+    `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\\n' "codex-cli test"
+  exit 0
+fi
+if [ "$1" = "mcp" ] && [ "$2" = "get" ]; then
+  exit 1
+fi
+printf '%s\\n' "$*" >> "$AAAS_TEST_LOG"
+`,
+  );
+  await chmod(brokenCodex, 0o755);
+  await chmod(appCodex, 0o755);
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(root, "scripts", "install.mjs"),
+      "--role",
+      "consumer",
+      "--client",
+      "codex",
+      "--cloud-url",
+      "https://aaas.example",
+      "--home",
+      home,
+      "--data-dir",
+      path.join(home, ".aaas"),
+    ],
+    {
+      cwd: root,
+      env: {
+        ...process.env,
+        HOME: home,
+        AAAS_HOME: home,
+        AAAS_CODEX_BIN: "",
+        AAAS_CODEX_APP_BIN: appCodex,
+        AAAS_TEST_LOG: log,
+        PATH: `${home}${path.delimiter}${process.env.PATH ?? ""}`,
+      },
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /role consumer/i);
+  assert.match(await readFile(log, "utf8"), /mcp add aaas/);
+  await assert.rejects(
+    () => lstat(path.join(home, ".aaas", "cloud-state.json")),
+    /ENOENT/,
+  );
+});
+
 test("the package CLI installs a stable Skill and MCP without a runner by default", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "aaas-npx-home-"));
   const installDir = path.join(home, ".local", "share", "efflora-aaas");

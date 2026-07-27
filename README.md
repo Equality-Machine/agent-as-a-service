@@ -17,6 +17,8 @@ npx -y Equality-Machine/agent-as-a-service
 它只安装 Skill + MCP，自动检测 Codex / Claude Code，**不会创建 Runner，也不会
 启动后台服务**。安装完成后，Skill 和 MCP 运行时会保存在稳定目录
 `~/.local/share/efflora-aaas`，不依赖可被清理的 `npx` 缓存。
+安装器会实际运行客户端版本探针；如果 PATH 中残留了损坏的 Codex npm 包装器，
+macOS 会自动回退到 Codex 桌面应用自带的可用二进制。
 
 `npx install` 并不是 npm 的标准语法；这里使用 npm 支持的 GitHub 仓库简写，
 直接运行仓库内的 `aaas` 可执行入口，不依赖尚未发布的 npm Registry 包。

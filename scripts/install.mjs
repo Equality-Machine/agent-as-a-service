@@ -48,10 +48,27 @@ function findOnPath(name) {
   return null;
 }
 
+function firstWorkingExecutable(candidates) {
+  const visited = new Set();
+  for (const candidate of candidates) {
+    if (!candidate || visited.has(candidate) || !isExecutable(candidate)) {
+      continue;
+    }
+    visited.add(candidate);
+    const probe = spawnSync(candidate, ["--version"], {
+      stdio: "ignore",
+      timeout: 5_000,
+    });
+    if (!probe.error && probe.status === 0) return candidate;
+  }
+  return null;
+}
+
 function detectClientBinaries() {
   const codexCandidates = [
     process.env.AAAS_CODEX_BIN,
     findOnPath("codex"),
+    process.env.AAAS_CODEX_APP_BIN,
     "/Applications/ChatGPT.app/Contents/Resources/codex",
   ];
   const claudeCandidates = [
@@ -59,8 +76,8 @@ function detectClientBinaries() {
     findOnPath("claude"),
   ];
   return {
-    codex: codexCandidates.find(isExecutable) ?? null,
-    claude: claudeCandidates.find(isExecutable) ?? null,
+    codex: firstWorkingExecutable(codexCandidates),
+    claude: firstWorkingExecutable(claudeCandidates),
   };
 }
 
@@ -72,7 +89,7 @@ function selectedClients(choice, binaries) {
       .map(([name]) => name);
     if (!detected.length) {
       throw new Error(
-        "No Codex or Claude Code executable was detected. Install one, or set AAAS_CODEX_BIN / AAAS_CLAUDE_BIN.",
+        "No working Codex or Claude Code executable was detected. Install or repair one, or set AAAS_CODEX_BIN / AAAS_CLAUDE_BIN.",
       );
     }
     return detected;
@@ -81,7 +98,7 @@ function selectedClients(choice, binaries) {
   for (const name of requested) {
     if (!binaries[name]) {
       throw new Error(
-        `${name} was requested but its executable was not found. Set AAAS_${name.toUpperCase()}_BIN.`,
+        `${name} was requested but no working executable was found. Set AAAS_${name.toUpperCase()}_BIN.`,
       );
     }
   }
