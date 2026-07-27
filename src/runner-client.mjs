@@ -49,6 +49,7 @@ export class CloudRunner {
   }
 
   async runOnce() {
+    await this.state.reload();
     const runner = await this.state.getRunner();
     if (!runner) return { status: "unconfigured" };
     const payload = await this.cloud.nextJob(runner.id, runner.token);

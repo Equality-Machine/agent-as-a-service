@@ -1,13 +1,25 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { accessSync, constants } from "node:fs";
 import { mkdir, rm, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { CloudState } from "../src/cloud-state.mjs";
+import { resolveInstallRole } from "../src/installer/roles.mjs";
+import { installRunnerService } from "../src/runner-service.mjs";
+
+const DEFAULT_CLOUD_URL =
+  "https://aaas-agent-service.b4yesc4t.chatgpt.site";
+
 function flag(name, fallback = null) {
   const index = process.argv.indexOf(`--${name}`);
   return index >= 0 ? process.argv[index + 1] : fallback;
+}
+
+function hasFlag(name) {
+  return process.argv.includes(`--${name}`);
 }
 
 function run(command, args) {
@@ -18,78 +30,230 @@ function run(command, args) {
   }
 }
 
+function isExecutable(file) {
+  if (!file) return false;
+  try {
+    accessSync(file, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findOnPath(name) {
+  for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
+    const candidate = path.join(directory, name);
+    if (isExecutable(candidate)) return candidate;
+  }
+  return null;
+}
+
+function detectClientBinaries() {
+  const codexCandidates = [
+    process.env.AAAS_CODEX_BIN,
+    findOnPath("codex"),
+    "/Applications/ChatGPT.app/Contents/Resources/codex",
+  ];
+  const claudeCandidates = [
+    process.env.AAAS_CLAUDE_BIN,
+    findOnPath("claude"),
+  ];
+  return {
+    codex: codexCandidates.find(isExecutable) ?? null,
+    claude: claudeCandidates.find(isExecutable) ?? null,
+  };
+}
+
+function selectedClients(choice, binaries) {
+  if (choice === "none") return [];
+  if (choice === "auto") {
+    const detected = Object.entries(binaries)
+      .filter(([, executable]) => executable)
+      .map(([name]) => name);
+    if (!detected.length) {
+      throw new Error(
+        "No Codex or Claude Code executable was detected. Install one, or set AAAS_CODEX_BIN / AAAS_CLAUDE_BIN.",
+      );
+    }
+    return detected;
+  }
+  const requested = choice === "both" ? ["codex", "claude"] : [choice];
+  for (const name of requested) {
+    if (!binaries[name]) {
+      throw new Error(
+        `${name} was requested but its executable was not found. Set AAAS_${name.toUpperCase()}_BIN.`,
+      );
+    }
+  }
+  return requested;
+}
+
 async function installSkill(target, source) {
   await mkdir(path.dirname(target), { recursive: true });
   await rm(target, { recursive: true, force: true });
   await symlink(source, target, "dir");
 }
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const cloudUrl = flag("cloud-url");
-if (!cloudUrl) {
-  process.stderr.write(
-    "Usage: node scripts/install.mjs --cloud-url https://YOUR-AAAS-SITE [--client codex|claude|both]\n",
-  );
-  process.exit(2);
+function mcpEnvironment(cloudUrl, home, dataDir) {
+  return [
+    `AAAS_CLOUD_URL=${cloudUrl}`,
+    `AAAS_HOME=${home}`,
+    `AAAS_DATA_DIR=${dataDir}`,
+  ];
 }
-const client = flag("client", "both");
-const cloudRunnerId = flag("cloud-runner-id");
-const cloudRunnerToken = flag("cloud-runner-token");
-if (!["codex", "claude", "both"].includes(client)) {
-  throw new Error("--client must be codex, claude, or both");
-}
-const skillSource = path.join(root, "skills", "aaas");
-const server = path.join(root, "src", "aaas-mcp-stdio.mjs");
 
-if (client === "codex" || client === "both") {
-  await installSkill(path.join(os.homedir(), ".codex", "skills", "aaas"), skillSource);
-  const codex =
-    process.env.AAAS_CODEX_BIN ??
-    "/Applications/ChatGPT.app/Contents/Resources/codex";
-  const existing = spawnSync(codex, ["mcp", "get", "aaas"], { stdio: "ignore" });
-  if (existing.status === 0) run(codex, ["mcp", "remove", "aaas"]);
-  run(codex, [
+async function installCodex({ executable, root, home, cloudUrl, dataDir }) {
+  await installSkill(
+    path.join(home, ".codex", "skills", "aaas"),
+    path.join(root, "skills", "aaas"),
+  );
+  const existing = spawnSync(executable, ["mcp", "get", "aaas"], {
+    stdio: "ignore",
+  });
+  if (existing.status === 0) run(executable, ["mcp", "remove", "aaas"]);
+  const envArgs = mcpEnvironment(cloudUrl, home, dataDir).flatMap((entry) => [
+    "--env",
+    entry,
+  ]);
+  run(executable, [
     "mcp",
     "add",
     "aaas",
-    "--env",
-    `AAAS_CLOUD_URL=${cloudUrl}`,
-    ...(cloudRunnerId
-      ? ["--env", `AAAS_CLOUD_RUNNER_ID=${cloudRunnerId}`]
-      : []),
-    ...(cloudRunnerToken
-      ? ["--env", `AAAS_CLOUD_RUNNER_TOKEN=${cloudRunnerToken}`]
-      : []),
+    ...envArgs,
     "--",
     process.execPath,
-    server,
+    path.join(root, "src", "aaas-mcp-stdio.mjs"),
   ]);
 }
 
-if (client === "claude" || client === "both") {
-  await installSkill(path.join(os.homedir(), ".claude", "skills", "aaas"), skillSource);
-  const existing = spawnSync("claude", ["mcp", "get", "aaas"], { stdio: "ignore" });
-  if (existing.status === 0) run("claude", ["mcp", "remove", "--scope", "user", "aaas"]);
-  run("claude", [
+async function installClaude({ executable, root, home, cloudUrl, dataDir }) {
+  await installSkill(
+    path.join(home, ".claude", "skills", "aaas"),
+    path.join(root, "skills", "aaas"),
+  );
+  const existing = spawnSync(executable, ["mcp", "get", "aaas"], {
+    stdio: "ignore",
+  });
+  if (existing.status === 0) {
+    run(executable, ["mcp", "remove", "--scope", "user", "aaas"]);
+  }
+  const envArgs = mcpEnvironment(cloudUrl, home, dataDir).flatMap((entry) => [
+    "-e",
+    entry,
+  ]);
+  run(executable, [
     "mcp",
     "add",
     "--scope",
     "user",
     "aaas",
-    "-e",
-    `AAAS_CLOUD_URL=${cloudUrl}`,
-    ...(cloudRunnerId
-      ? ["-e", `AAAS_CLOUD_RUNNER_ID=${cloudRunnerId}`]
-      : []),
-    ...(cloudRunnerToken
-      ? ["-e", `AAAS_CLOUD_RUNNER_TOKEN=${cloudRunnerToken}`]
-      : []),
+    ...envArgs,
     "--",
     process.execPath,
-    server,
+    path.join(root, "src", "aaas-mcp-stdio.mjs"),
   ]);
 }
 
-process.stdout.write(
-  `AaaS installed for ${client}. Restart the client, then say “发布当前对话”.\n`,
+if (hasFlag("help")) {
+  process.stdout.write(`Usage:
+  node scripts/install.mjs [--role consumer|publisher|runner]
+    [--client auto|codex|claude|both|none]
+    [--cloud-url URL] [--data-dir PATH] [--no-start]
+
+consumer is the default and installs Skill + MCP without a Runner.
+publisher additionally installs a persistent local Runner.
+runner installs only a persistent server Runner.
+`);
+  process.exit(0);
+}
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const home = path.resolve(
+  flag("home", process.env.AAAS_HOME ?? os.homedir()),
 );
+const cloudUrl = flag(
+  "cloud-url",
+  process.env.AAAS_CLOUD_URL ?? DEFAULT_CLOUD_URL,
+);
+const dataDir = path.resolve(
+  flag("data-dir", process.env.AAAS_DATA_DIR ?? path.join(home, ".aaas")),
+);
+const role = resolveInstallRole(flag("role", "consumer"));
+const clientChoice = flag("client", "auto");
+if (!["auto", "codex", "claude", "both", "none"].includes(clientChoice)) {
+  throw new Error("--client must be auto, codex, claude, both, or none");
+}
+
+const binaries = detectClientBinaries();
+let clients = [];
+if (role.installClients) {
+  if (clientChoice === "none") {
+    throw new Error("consumer and publisher roles require at least one client");
+  }
+  clients = selectedClients(clientChoice, binaries);
+  for (const client of clients) {
+    const input = {
+      executable: binaries[client],
+      root,
+      home,
+      cloudUrl,
+      dataDir,
+    };
+    if (client === "codex") await installCodex(input);
+    else await installClaude(input);
+  }
+}
+
+let runner = null;
+let service = null;
+if (role.installRunner) {
+  if (role.role === "runner" && !binaries.codex && !binaries.claude) {
+    throw new Error(
+      "A server Runner needs an authenticated Codex or Claude Code CLI. Install one or set AAAS_CODEX_BIN / AAAS_CLAUDE_BIN first.",
+    );
+  }
+  const state = new CloudState(dataDir);
+  const existing = await state.getRunner();
+  if (existing && existing.kind !== role.runnerKind) {
+    throw new Error(
+      `Runner ${existing.id} is already ${existing.kind}; use a different --data-dir for ${role.runnerKind}.`,
+    );
+  }
+  runner = await state.ensureRunner(role.runnerKind);
+  service = await installRunnerService({
+    root,
+    cloudUrl,
+    dataDir,
+    home,
+    start: !hasFlag("no-start"),
+  });
+}
+
+if (role.role === "consumer") {
+  process.stdout.write(
+    `Installed role consumer for ${clients.join(" + ")}. No Runner was created.\n`,
+  );
+  process.stdout.write(
+    "Restart the client. You can use another Agent immediately; publishing will offer to install a Runner on demand.\n",
+  );
+} else if (role.role === "publisher") {
+  process.stdout.write(
+    `Installed role publisher for ${clients.join(" + ")} with ${service.service} (${service.running ? "running" : "not started"}).\n`,
+  );
+} else {
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        role: "runner",
+        runnerId: runner.id,
+        runnerToken: runner.token,
+        service: service.service,
+        running: service.running,
+        dataDir,
+        note: "Keep runnerToken secret and pair it only with an authorized publisher.",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}

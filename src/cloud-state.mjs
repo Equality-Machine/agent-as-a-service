@@ -32,6 +32,13 @@ export class CloudState {
     return this.state;
   }
 
+  async reload() {
+    await this.writeQueue;
+    this.loaded = false;
+    this.state = structuredClone(EMPTY_STATE);
+    return this.load();
+  }
+
   async ensureRunner(kind = "local") {
     await this.load();
     if (!this.state.runner) {

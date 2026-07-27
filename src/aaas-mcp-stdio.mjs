@@ -2,13 +2,21 @@
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import { fileURLToPath } from "node:url";
 
 import { CloudClient } from "./cloud-client.mjs";
+import { CloudState } from "./cloud-state.mjs";
 import { Publisher } from "./publisher.mjs";
 import { CloudRunner } from "./runner-client.mjs";
+import {
+  getRunnerServiceStatus,
+  installRunnerService,
+} from "./runner-service.mjs";
 
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const home = path.resolve(process.env.AAAS_HOME ?? os.homedir());
 const dataDir = path.resolve(
-  process.env.AAAS_DATA_DIR ?? path.join(os.homedir(), ".aaas"),
+  process.env.AAAS_DATA_DIR ?? path.join(home, ".aaas"),
 );
 const cloudUrl = process.env.AAAS_CLOUD_URL ?? "http://127.0.0.1:3000";
 const cloud = new CloudClient({ baseUrl: cloudUrl });
@@ -18,6 +26,7 @@ const publisher = new Publisher({
   publisherToken: process.env.AAAS_PUBLISH_TOKEN ?? null,
 });
 const runner = new CloudRunner({ dataDir, cloudUrl });
+const runnerState = new CloudState(dataDir);
 const runnerAbort = new AbortController();
 let runnerStarted = false;
 
@@ -28,6 +37,18 @@ function startRunner() {
 }
 
 const tools = [
+  {
+    name: "runner_status",
+    description:
+      "Check whether this machine is only a consumer or already has a persistent local AaaS Runner. Does not install or change anything.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "install_local_runner",
+    description:
+      "Initialize and install a persistent local AaaS Runner. This changes the machine by adding a macOS LaunchAgent or Linux systemd service; call only after explicit user confirmation.",
+    inputSchema: { type: "object", properties: {} },
+  },
   {
     name: "publish_current_agent",
     description:
@@ -131,7 +152,50 @@ function failure(id, error) {
 }
 
 async function callTool(name, args) {
+  if (name === "runner_status") {
+    await runnerState.reload();
+    const identity = await runnerState.getRunner();
+    const service = await getRunnerServiceStatus({ home });
+    return {
+      configured: Boolean(identity),
+      installed: service.installed,
+      running: service.running,
+      platform: service.platform,
+      role: identity || service.installed ? "publisher" : "consumer",
+    };
+  }
+  if (name === "install_local_runner") {
+    await runnerState.reload();
+    const existing = await runnerState.getRunner();
+    if (existing && existing.kind !== "local") {
+      throw new Error(
+        "This data directory belongs to a cloud Runner; choose a separate AAAS_DATA_DIR for local publishing.",
+      );
+    }
+    await runnerState.ensureRunner("local");
+    const service = await installRunnerService({
+      root,
+      cloudUrl,
+      dataDir,
+      home,
+    });
+    return {
+      configured: true,
+      installed: service.installed,
+      running: service.running,
+      platform: service.platform,
+      role: "publisher",
+    };
+  }
   if (name === "publish_current_agent") {
+    if ((args.execution_mode ?? "local") === "local") {
+      const service = await getRunnerServiceStatus({ home });
+      if (!service.installed || !service.running) {
+        throw new Error(
+          "A persistent local Runner is required before publishing. Call runner_status, ask for confirmation, then call install_local_runner.",
+        );
+      }
+    }
     const agent = await publisher.publishCurrent({
       name: args.name,
       description: args.description,

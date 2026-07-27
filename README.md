@@ -6,24 +6,58 @@
 生产控制面：
 [aaas-agent-service.b4yesc4t.chatgpt.site](https://aaas-agent-service.b4yesc4t.chatgpt.site)
 
-## 最短使用路径
+## 一条命令安装
 
-### 1. 安装到 Codex / Claude Code
+只调用别人发布的 Agent 时，安装默认的 `consumer` 角色：
 
 ```bash
-npm run install:clients -- \
-  --cloud-url https://aaas-agent-service.b4yesc4t.chatgpt.site \
-  --client both
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh | bash
 ```
 
-重启客户端。然后在自己的对话里直接说：
+它只安装 Skill + MCP，自动检测 Codex / Claude Code，**不会创建 Runner，也不会
+启动后台服务**。没有 Node.js 22 时，安装器会从 nodejs.org 下载并校验一个独立
+运行时；需要系统已安装 Git。
+
+可先下载审阅再执行：
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh \
+  -o /tmp/aaas-install.sh
+less /tmp/aaas-install.sh
+bash /tmp/aaas-install.sh
+```
+
+安装后重启客户端，直接说：
+
+```text
+使用 Agent agt_...，问它：请解释这个方案的核心隔离模型。
+```
+
+调用别人发布的 Agent 不需要 Runner。第一轮会创建该用户自己的
+`conversationId`，后续问题只延续这条 Fork，不会写回发布者 Session。
+
+## 第一次发布时按需安装 Runner
+
+`consumer` 以后也可以直接说：
 
 ```text
 把当前对话发布成 Agent，名字叫「研究助手」，在我的本地运行。
 ```
 
-Skill 会展示公开名称、描述、Provider 和运行模式，请你确认后调用
-`publish_current_agent`，最后返回：
+Skill 会先调用只读的 `runner_status`。如果本机还没有 Runner，它会解释即将
+安装的常驻后台服务并请求确认；确认后调用 `install_local_runner`，在 macOS
+安装 LaunchAgent、在 Linux 安装 systemd service。Runner 安装成功后，Skill
+再展示公开名称、描述、Provider 和运行模式，请你确认发布。
+
+如果一开始就知道这台机器要发布 Agent，也可以一次完成：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
+  bash -s -- --role publisher
+```
+
+发布完成后返回：
 
 ```text
 Agent ID: agt_...
@@ -47,37 +81,8 @@ export ANTHROPIC_MODEL=qwen3.7-max
 本项目已用临时环境完成真实 Claude 历史的 Fork、Continuation 和来源摘要不变
 验收；详见验证文档。
 
-### 2. 让另一位用户调用
-
-另一位用户安装同一个 Skill/MCP 后，在自己的 Codex 或 Claude Code 里说：
-
-```text
-使用 Agent agt_...，问它：请解释这个方案的核心隔离模型。
-```
-
-第一轮调用 `agent_start`，返回新的 `conversationId`；后续问题调用
-`agent_continue` 并复用该 ID。明确结束后调用 `agent_end`。新的使用者或“新建
-对话”一定再次调用 `agent_start`，因此不会复用别人的分支。
-
-也可以直接把 Agent ID 粘贴到
+网页用户无需安装任何内容，可以直接把 Agent ID 粘贴到
 [生产网页](https://aaas-agent-service.b4yesc4t.chatgpt.site)。
-
-### 3. 让本地 Agent 常驻在线
-
-MCP 进程在发布后会启动 Runner；若希望关闭 Codex / Claude 后仍可被调用，在
-macOS 安装 LaunchAgent：
-
-```bash
-npm run install:runner -- \
-  --cloud-url https://aaas-agent-service.b4yesc4t.chatgpt.site
-```
-
-本机已验证的示例：
-
-```text
-Agent ID: agt_14b2806758a042db
-Runner: com.efflora.aaas-runner
-```
 
 ## 两种执行模式
 
@@ -91,7 +96,16 @@ Runner: com.efflora.aaas-runner
 
 ### `cloud`
 
-- 先在服务器安装 Provider CLI、登录态和本项目，再一次性创建 Runner：
+- 先在服务器安装并登录 Codex 或 Claude Code。然后一条命令安装远程 Runner：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
+  bash -s -- --role runner
+```
+
+- 命令会输出一次性的 `runnerId` 和 `runnerToken`。Token 只应进入授权发布端
+  或 Secret 管理器，不应发到聊天、日志或仓库。
+- 也可以从源码手动创建：
 
 ```bash
 AAAS_DATA_DIR=/var/lib/aaas npm run cloud:enroll
@@ -142,6 +156,8 @@ Source Session (private, mutable publisher history)
 
 ## MCP 工具
 
+- `runner_status`
+- `install_local_runner`
 - `publish_current_agent`
 - `find_agent`
 - `agent_start`

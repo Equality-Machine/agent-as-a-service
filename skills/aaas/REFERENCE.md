@@ -13,6 +13,31 @@ The cloud control plane stores public metadata, IDs, messages, job state, and
 opaque source handles. Local source paths, source transcripts, and runner
 credentials stay on the Runner machine.
 
+## One-command installation
+
+Consumer (default, Skill + MCP only, no Runner):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh | bash
+```
+
+Publisher (Skill + MCP + persistent local Runner):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
+  bash -s -- --role publisher
+```
+
+Server Runner:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh |
+  bash -s -- --role runner
+```
+
+A consumer can be promoted on demand. Before a local publication, call
+`runner_status`; after explicit user confirmation, call `install_local_runner`.
+
 ## Manual installation
 
 Set `AAAS_CLOUD_URL` to the deployed control-plane URL.
@@ -41,7 +66,8 @@ AAAS_CLOUD_URL=https://YOUR-SITE.example \
 ```
 
 The MCP process starts the Runner after publishing, so the daemon is optional
-while the publishing client remains open.
+only for low-level/manual use. The published Skill requires a persistent Runner
+so the Agent remains available after the client exits.
 
 ## Cloud Runner pairing
 

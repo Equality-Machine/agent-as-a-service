@@ -1,6 +1,6 @@
 # Verification evidence
 
-Date: 2026-07-26, Asia/Shanghai
+Date: 2026-07-27, Asia/Shanghai
 
 ## Production deployment
 
@@ -67,11 +67,13 @@ Marker: DAEMON-RUNNER-OK
 The consumer MCP processes explicitly removed `CODEX_THREAD_ID` and
 `CLAUDE_SESSION_ID`, so they had only the public Agent/Conversation IDs.
 
-Version-4 production stdio MCP acceptance:
+Version-4 production stdio MCP acceptance（工具面现已向前兼容增加 Runner
+按需安装工具）：
 
 ```text
 MCP server: aaas-publisher-and-client 0.2.0
-tools: publish_current_agent, find_agent, agent_start, agent_continue, agent_end
+tools: runner_status, install_local_runner, publish_current_agent, find_agent,
+       agent_start, agent_continue, agent_end
 Conversation: cnv_3dc40e21b96d4ac2
 start marker: AAAS-MCP-START-1785067442855
 continue marker: AAAS-MCP-CONTINUE-1785067455394
@@ -130,14 +132,41 @@ after:  bbb3c066288ddbc93c4895f19ace06f828439fa4cf31684a7109539df808eb54
 unchanged: yes
 ```
 
-## Automated suites
+## One-command installer acceptance
 
-`npm test`:
+安装测试使用隔离的临时 HOME 和假的 Codex CLI，执行真实的 bootstrap / MCP
+注册文件流程：
 
 ```text
-18 tests
-16 passed
-2 skipped live-provider tests
+consumer:
+  Skill symlink: created
+  MCP registration: created
+  cloud-state.json: absent
+  Runner service: absent
+
+publisher --no-start:
+  Skill symlink: created
+  local Runner identity: created
+  macOS LaunchAgent file: created
+  background process started: intentionally disabled for isolated test
+
+Linux:
+  systemd user unit and enable/start command: generated and contract-tested
+
+Runner hot enrollment:
+  process starts unconfigured
+  enrollment is written by another process
+  same Runner process reloads identity and polls successfully
+```
+
+## Automated suites
+
+`npm test` on 2026-07-27:
+
+```text
+26 tests
+22 passed
+4 skipped (2 live-provider + production Runner + post-publish installer)
 0 failed
 ```
 
@@ -151,7 +180,16 @@ Coverage includes:
 - Job/Lease claim and completion;
 - source fingerprint preservation;
 - AES-256-GCM capsule authentication;
-- first-job cloud capsule download, import, and digest verification.
+- first-job cloud capsule download, import, and digest verification;
+- consumer/publisher/runner role separation;
+- macOS LaunchAgent and Linux systemd service plans;
+- isolated bootstrap and MCP registration without consumer Runner creation;
+- Runner enrollment reload after the daemon has already started.
+
+The gated production Runner test was also executed separately on 2026-07-27
+against `agt_14b2806758a042db`. It completed `agent_start → agent_continue →
+agent_end` in one Conversation and confirmed the immutable source digest was
+unchanged (1 passed, 0 failed).
 
 `cd cloud && npm test` builds the Sites worker and validates the public UI/API
 surface. Both cloud tests passed. `cd cloud && npm run lint` also passed with no

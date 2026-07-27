@@ -77,6 +77,16 @@ Runner 只发起出站 HTTPS，不需要 NAT 穿透。D1 的条件更新确保�
 
 ## 本地与云 Runner
 
+### Consumer 不需要 Runner
+
+只调用已发布 Agent 的用户通过网页或 MCP 把请求发送到控制面，由该 Agent 绑定
+的发布者/服务器 Runner 执行。Consumer 机器不保存发布者 Session、Provider
+凭据或 Runner 身份，因此默认安装只包含 Skill + MCP。
+
+当 Consumer 第一次请求本地发布时，Skill 先读取 `runner_status`。用户明确确认
+后台服务安装后，`install_local_runner` 才把机器按需升级为 Publisher；普通
+`agent_start` / `agent_continue` 路径不会触发安装。
+
 ### Local Runner
 
 Source Snapshot、Provider 凭据和工作区留在发布者机器。控制面根据

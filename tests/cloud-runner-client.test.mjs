@@ -89,3 +89,28 @@ test("cloud runner forks once, resumes the consumer branch, and reports through 
     ["first reply", "second reply"],
   );
 });
+
+test("a running cloud runner discovers enrollment written after startup", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "aaas-cloud-runner-reload-"));
+  const calls = [];
+  const cloudClient = {
+    async nextJob(id, token) {
+      calls.push({ id, token });
+      return null;
+    },
+  };
+  const runner = new CloudRunner({
+    dataDir: root,
+    cloudUrl: "https://aaas.example",
+    cloudClient,
+    runtimes: {},
+  });
+
+  assert.deepEqual(await runner.runOnce(), { status: "unconfigured" });
+
+  const enrollmentState = new CloudState(root);
+  const identity = await enrollmentState.ensureRunner("local");
+
+  assert.deepEqual(await runner.runOnce(), { status: "idle" });
+  assert.deepEqual(calls, [{ id: identity.id, token: identity.token }]);
+});
