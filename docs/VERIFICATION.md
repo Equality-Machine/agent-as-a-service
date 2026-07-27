@@ -7,15 +7,58 @@ Date: 2026-07-27, Asia/Shanghai
 ```text
 URL: https://aaas-agent-service.b4yesc4t.chatgpt.site
 Access: public
-Version: 4
-Source commit: 9799251d5ad0b4a17a40531bf177fc0da45f6452
+Version: 5
+GitHub source commit: 17a650e5afbd56c3f76792399ede6b77e8768e9c
+Sites source commit: 0d69b6198f06c86b0a47e0fa00e86151dec8fc69
 Health: HTTP 200 {"ok":true,"service":"AaaS control plane"}
 Persistence: D1
 Encrypted cloud capsules: R2
 ```
 
+Version 5 was built, linted, pushed to the Sites source repository, saved from
+that exact commit, and deployed successfully. Its D1 migration adds Job stage,
+heartbeat, lease expiry, and cancellation fields.
+
+The installed LaunchAgent Runner was restarted onto the new code. A real
+production two-turn acceptance then used the same consumer branch and preserved
+the immutable source digest:
+
+```text
+Agent: agt_14b2806758a042db
+Conversation: cnv_48a04c383cf14e7e
+Marker: AAAS-INSTALLER-E2E-1785159230152
+Continuation: same Conversation and Provider child Session
+Source digest unchanged: true
+```
+
+The production page visibly passed through `Agent 执行中 / running / online`
+before returning:
+
+```text
+Conversation: cnv_fcabb89a68534e4f
+Marker: AAAS-WEB-V5-1785159320
+Final page state: 执行完成
+```
+
+A separate web invocation exercised cancellation while the Provider process was
+running:
+
+```text
+Conversation: cnv_179e8b1b194c4d6e
+Final page state: 调用已取消
+Assistant message persisted by backend: no
+Provider app-server remaining after cancellation: no
+```
+
+Pre-upgrade publisher MCP processes were terminated once during rollout so none
+could retain the removed in-process Runner. The new MCP code never polls for
+Jobs; only the LaunchAgent Runner does. A post-acceptance process check found no
+AaaS MCP child created by the isolated Codex runtime.
+
+## Historical version-4 browser acceptance
+
 Version 4 was built, linted, pushed to the Sites source repository, saved from
-that exact commit, and deployed successfully. The production page was then
+its exact commit, and deployed successfully. The production page was then
 opened in the Codex in-app browser, looked up the reference Agent by ID, and
 exercised through two turns plus a fresh fork:
 
@@ -164,8 +207,8 @@ Runner hot enrollment:
 `npm test` on 2026-07-27:
 
 ```text
-26 tests
-22 passed
+29 tests
+25 passed
 4 skipped (2 live-provider + production Runner + post-publish installer)
 0 failed
 ```
@@ -185,6 +228,21 @@ Coverage includes:
 - macOS LaunchAgent and Linux systemd service plans;
 - isolated bootstrap and MCP registration without consumer Runner creation;
 - Runner enrollment reload after the daemon has already started.
+- publishing MCP cannot consume Runner Jobs;
+- isolated Codex home excludes inherited MCP, Apps, plugins, Hooks, Skills, and
+  memory configuration while retaining authentication;
+- Source Snapshot reload after claim closes the publish/claim race;
+- lease stage heartbeat and active-runtime cancellation propagation.
+
+The real isolated Codex test also ran separately after the change:
+
+```text
+publisher session: 019fa25e-3a1b-7470-88b2-12c65fcf664c
+consumer fork:     019fa3c1-2a90-75e1-9e56-56e3fe662a5d
+Conversation:      e077c137-9eb6-4f76-89b6-ce645b0d832d
+marker:            AAAS-CODEX-1785158771456
+continuation:      AAAS-CODEX-1785158771456-CONTINUED
+```
 
 The gated production Runner test was also executed separately on 2026-07-27
 against `agt_14b2806758a042db`. It completed `agent_start → agent_continue →
