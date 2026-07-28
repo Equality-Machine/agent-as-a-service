@@ -36,8 +36,11 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
   assert.match(storySource, /story-trust/);
   assert.doesNotMatch(storySource, /WebGLRenderer|ShaderMaterial|story-canvas|spring\.velocity/);
   assert.doesNotMatch(storySource, /ContextVisual|ShareVisual|ConversationVisual/);
-  assert.match(layout, /AaaS — Agent as a Service/);
-  assert.match(layout, /Skip the briefing\. Start with an Agent/);
+  assert.match(layout, /Codex Sharing — Share the session\. Continue the work\./);
+  assert.match(layout, /Share the session\. Continue the work\./);
+  assert.match(consoleSource, /Codex Sharing home/);
+  assert.match(consoleSource, /codex-sharing-mark\.png/);
+  assert.match(storySource, /Codex Sharing/);
   assert.match(css, /--accent:\s*#f26a2e/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(packageJson, /@phosphor-icons\/react/);

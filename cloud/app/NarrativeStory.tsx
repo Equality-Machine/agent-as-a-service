@@ -107,7 +107,7 @@ function DestinationsDemo({ language }: { language: PublicLanguage }) {
         <small>{language === "zh" ? "一个链接就够了" : "One link is enough"}</small>
         <div className="handoff-url">
           <LinkSimple weight="bold" />
-          <span>aaas…/a/agt_14b2806758a042db</span>
+          <span>codex-sharing…/a/agt_14b2806758a042db</span>
           <Check weight="bold" />
         </div>
       </div>
@@ -336,9 +336,9 @@ export function NarrativeStory({ language }: { language: PublicLanguage }) {
                 </span>
                 <div>
                   <LinkSimple />
-                  aaas-agent-service…/a/agt_14b2
+                  codex-sharing…/a/agt_14b2
                 </div>
-                <strong>AaaS</strong>
+                <strong>Codex Sharing</strong>
               </div>
               <div className="story-product-body">
                 <ConversationDemo language={language} />

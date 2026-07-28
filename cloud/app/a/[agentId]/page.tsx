@@ -12,7 +12,7 @@ export async function generateMetadata({
   const { agentId } = await params;
   const encodedAgentId = encodeURIComponent(agentId);
   return {
-    title: `${agentId} — Start with this Agent`,
+    title: `${agentId} — Codex Sharing`,
     description:
       "Open this shared Agent and start with the actual task. Your conversation stays private, and the publisher’s original stays unchanged.",
     alternates: {

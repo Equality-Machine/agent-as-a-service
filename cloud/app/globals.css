@@ -144,7 +144,7 @@ summary:focus-visible {
 }
 
 .brand img {
-  border-radius: 9px;
+  object-fit: contain;
 }
 
 .nav-actions {
