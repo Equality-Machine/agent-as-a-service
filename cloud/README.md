@@ -1,6 +1,6 @@
-# AaaS control plane
+# Codex Sharing control plane
 
-`cloud/` contains the hosted control plane and web experience for AaaS.
+`cloud/` contains the hosted control plane and public Codex Sharing experience.
 
 [Open the production preview](https://aaas-agent-service.b4yesc4t.chatgpt.site)
 

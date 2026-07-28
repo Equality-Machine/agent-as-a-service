@@ -1,13 +1,13 @@
 export const PUBLIC_UI_COPY = {
   zh: {
     nav: {
-      product: "AaaS",
+      product: "Codex Sharing",
       useAgent: "打开 Agent",
       switchLanguage: "Switch to English",
       skipToContent: "跳到主要内容",
     },
     home: {
-      eyebrow: "AGENT AS A SERVICE",
+      eyebrow: "CODEX SHARING",
       title: "不用重新交代。直接推进工作。",
       description:
         "粘贴别人分享的 Agent ID，直接说要完成什么。背景、关键判断和做事方式，它都已经了解。",
@@ -80,13 +80,13 @@ export const PUBLIC_UI_COPY = {
   },
   en: {
     nav: {
-      product: "AaaS",
+      product: "Codex Sharing",
       useAgent: "Open an Agent",
       switchLanguage: "切换到中文",
       skipToContent: "Skip to main content",
     },
     home: {
-      eyebrow: "AGENT AS A SERVICE",
+      eyebrow: "CODEX SHARING",
       title: "Skip the briefing. Start the work.",
       description:
         "Paste the Agent ID someone shared with you and go straight to the task. The context, key decisions, and way of working are already there.",

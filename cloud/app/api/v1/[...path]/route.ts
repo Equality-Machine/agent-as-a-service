@@ -749,7 +749,7 @@ async function route(request: Request) {
   const method = request.method;
 
   if (method === "GET" && path[0] === "health") {
-    return json({ ok: true, service: "AaaS control plane" });
+    return json({ ok: true, service: "Codex Sharing control plane" });
   }
   if (method === "POST" && path[0] === "publish" && path.length === 1) {
     return publish(request);

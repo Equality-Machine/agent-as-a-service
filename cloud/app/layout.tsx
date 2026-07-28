@@ -21,33 +21,34 @@ const notoSerif = Noto_Serif_SC({
 });
 
 export const metadata: Metadata = {
-  title: "AaaS — Agent as a Service",
+  title: "Codex Sharing — Share the session. Continue the work.",
   description:
-    "Turn a Codex or Claude Code session into an Agent anyone can use. Every recipient gets a private conversation, while your original stays unchanged.",
+    "Share a deeply worked Codex or Claude Code session so someone else can continue the work in a private conversation, without changing your original.",
   openGraph: {
-    title: "AaaS — Agent as a Service",
+    title: "Codex Sharing",
     description:
-      "Skip the briefing. Start with an Agent that already knows the work.",
+      "Share the session. Continue the work.",
     type: "website",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "AaaS — start work with an Agent that already knows the context",
+        alt: "Codex Sharing — share the session and continue the work",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AaaS — Agent as a Service",
+    title: "Codex Sharing",
     description:
-      "Skip the briefing. Start with an Agent that already knows the work.",
+      "Share the session. Continue the work.",
     images: ["/og.png"],
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/codex-sharing-mark.png",
   },
 };
 

@@ -155,9 +155,9 @@ function SiteNav({
         {copy.nav.skipToContent}
       </a>
       <header className="site-nav">
-        <Link className="brand" href="/" aria-label="AaaS home">
+        <Link className="brand" href="/" aria-label="Codex Sharing home">
           <Image
-            src="/favicon.svg"
+            src="/codex-sharing-mark.png"
             width={32}
             height={32}
             alt=""

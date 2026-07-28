@@ -22,7 +22,7 @@ export function buildAgentManifest({ agentId, origin = "" }) {
     consumer: {
       runnerRequired: false,
       install: {
-        when: "AaaS MCP tools are unavailable",
+        when: "Codex Sharing MCP tools are unavailable",
         approvalRequired: true,
         command: AAAS_INSTALL_COMMAND,
         restartClientAfterInstall: true,
@@ -73,11 +73,11 @@ const LINK_COPY = {
     kicker: "带到你的工作流里",
     title: "把这个链接粘贴给 Codex 或 Claude Code，就能使用",
     body:
-      "它们会读到页面里的使用说明，并连接这个 Agent。如果缺少 AaaS 工具，会先征得你的同意再安装。只使用别人分享的 Agent，永远不需要 Runner。",
+      "它们会读到页面里的使用说明，并连接这个 Agent。如果缺少 Codex Sharing 工具，会先征得你的同意再安装。只使用别人分享的 Agent，永远不需要 Runner。",
     summary: "在编码 Agent 里使用",
     steps: [
       "把当前页面链接粘贴给 Codex 或 Claude Code。",
-      "如果它找不到 AaaS 工具，会先向你确认，再安装消费者 Skill + MCP：",
+      "如果它找不到 Codex Sharing 工具，会先向你确认，再安装消费者 Skill + MCP：",
       "安装后重启客户端，即可在后续对话中继续使用；当前任务也可以按页面内的清单直接调用。",
     ],
     manifest: "查看机器可读使用清单",
@@ -86,11 +86,11 @@ const LINK_COPY = {
     kicker: "TAKE IT INTO YOUR WORKFLOW",
     title: "Paste this link into Codex or Claude Code to use the Agent",
     body:
-      "They can read the instructions on this page and connect to the Agent. If the AaaS tools are missing, they ask before installing anything. Using someone else’s Agent never requires a Runner.",
+      "They can read the instructions on this page and connect to the Agent. If the Codex Sharing tools are missing, they ask before installing anything. Using someone else’s Agent never requires a Runner.",
     summary: "Use it in your coding agent",
     steps: [
       "Paste this page link into Codex or Claude Code.",
-      "If the AaaS tools are missing, it asks before installing the consumer Skill + MCP:",
+      "If the Codex Sharing tools are missing, it asks before installing the consumer Skill + MCP:",
       "Restart the client to use it in future conversations. The current task can also call the Agent immediately through the manifest on this page.",
     ],
     manifest: "View the machine-readable usage manifest",
