@@ -26,13 +26,22 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
   assert.match(consoleSource, /正在处理你的任务/);
   assert.match(consoleSource, /MessageMarkdown/);
   assert.match(storySource, /requestAnimationFrame/);
+  assert.match(storySource, /IntersectionObserver/);
   assert.match(storySource, /prefers-reduced-motion/);
-  assert.match(storySource, /data-phase/);
+  assert.match(storySource, /data-story-act/);
+  assert.match(storySource, /story-product-stage/);
+  assert.match(storySource, /story-conversation/);
+  assert.match(storySource, /story-destinations/);
+  assert.match(storySource, /story-branches/);
+  assert.match(storySource, /story-trust/);
+  assert.doesNotMatch(storySource, /WebGLRenderer|ShaderMaterial|story-canvas|spring\.velocity/);
+  assert.doesNotMatch(storySource, /ContextVisual|ShareVisual|ConversationVisual/);
   assert.match(layout, /AaaS — Agent as a Service/);
   assert.match(layout, /Skip the briefing\. Start with an Agent/);
   assert.match(css, /--accent:\s*#f26a2e/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(packageJson, /@phosphor-icons\/react/);
+  assert.doesNotMatch(packageJson, /"three"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await assert.rejects(
     access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)),
