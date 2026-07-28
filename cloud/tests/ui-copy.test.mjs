@@ -40,6 +40,16 @@ test("public UI copy tells the Agent story in Chinese and English", () => {
     PUBLIC_UI_COPY.en.home.publisherCta,
     "Already have a great working session? Publish it as an Agent",
   );
+  assert.equal(PUBLIC_UI_COPY.zh.nav.githubStar, "GitHub Star");
+  assert.equal(PUBLIC_UI_COPY.en.nav.githubStar, "Star on GitHub");
+  assert.match(PUBLIC_UI_COPY.zh.guide.consumerNote, /不需要 Runner/);
+  assert.match(PUBLIC_UI_COPY.en.guide.consumerNote, /never requires a Runner/);
+  assert.match(
+    PUBLIC_UI_COPY.zh.guide.consumerPrompt,
+    /npx -y Equality-Machine\/agent-as-a-service/,
+  );
+  assert.match(PUBLIC_UI_COPY.zh.guide.publisherPrompt, /征得我的确认/);
+  assert.match(PUBLIC_UI_COPY.en.guide.publisherPrompt, /ask for my approval/);
 });
 
 test("public-facing story copy avoids implementation jargon", () => {

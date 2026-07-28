@@ -3,6 +3,7 @@ export const PUBLIC_UI_COPY = {
     nav: {
       product: "Codex Sharing",
       useAgent: "打开 Agent",
+      githubStar: "GitHub Star",
       switchLanguage: "Switch to English",
       skipToContent: "跳到主要内容",
     },
@@ -49,6 +50,41 @@ export const PUBLIC_UI_COPY = {
         conversations: ["我的推进", "同事的推进"],
       },
     ],
+    guide: {
+      eyebrow: "HOW TO START",
+      title: "收到就能用。想分享，也只需要一句话。",
+      body:
+        "网页适合立即开始，Codex 和 Claude Code 适合把 Agent 带进正在做的工作。下面两段话可以直接复制。",
+      consumerLabel: "使用别人分享的 Agent",
+      consumerTitle: "打开链接，直接说任务。",
+      consumerBody:
+        "在网页里不需要安装任何东西。想在 Codex 或 Claude Code 里调用，复制下面的说明交给它即可。",
+      consumerSteps: [
+        "网页：打开分享链接，直接开始对话。",
+        "Codex：复制下面的说明，粘贴到当前任务。",
+        "继续追问时，它会保持这次对话的上下文。",
+      ],
+      consumerNote: "只使用别人的 Agent，不需要 Runner。",
+      publisherLabel: "发布自己的 Agent",
+      publisherTitle: "把已经磨合好的会话分享出去。",
+      publisherBody:
+        "在你想分享的 Codex 或 Claude Code 会话中，复制下面的说明。它会完成检查、配置和发布。",
+      publisherSteps: [
+        "回到已经完成工作的那段会话。",
+        "复制下面的说明，填入 Agent 名称。",
+        "确认后获得 Agent ID 和可分享链接。",
+      ],
+      publisherNote: "只有发布时才检查 Runner；安装前会先征得你的确认。",
+      promptLabel: "复制给 Codex / Claude Code",
+      copyForCodex: "复制给 Codex",
+      copied: "已复制",
+      installCommandLabel: "两种方式使用同一个安装入口；默认只安装 Skill + MCP：",
+      agentPlaceholder: "<粘贴 Agent 分享链接或 Agent ID>",
+      consumerPrompt:
+        "请使用这个 Codex Sharing Agent：\n{agent}\n\n如果当前还没有 Codex Sharing，请先运行：\nnpx -y Equality-Machine/agent-as-a-service\n\n如果安装后需要重启客户端，请明确提醒我；当前任务可优先按分享页里的调用说明继续。\n\n请用这个 Agent 帮我完成：\n<写下你的任务>",
+      publisherPrompt:
+        "请使用 Codex Sharing 发布当前会话。\n\n如果当前还没有 Codex Sharing，请先运行：\nnpx -y Equality-Machine/agent-as-a-service\n\n发布前检查 Runner。只有确实需要时才安装或配置，并先说明会修改什么、征得我的确认。\n\n把当前会话发布为本地运行的 Agent，名称是：\n<填写 Agent 名称>\n\n完成后返回 Agent ID 和分享链接。",
+    },
     share: {
       eyebrow: "这个 Agent 已准备好",
       agentIdLabel: "Agent ID",
@@ -82,6 +118,7 @@ export const PUBLIC_UI_COPY = {
     nav: {
       product: "Codex Sharing",
       useAgent: "Open an Agent",
+      githubStar: "Star on GitHub",
       switchLanguage: "切换到中文",
       skipToContent: "Skip to main content",
     },
@@ -128,6 +165,43 @@ export const PUBLIC_UI_COPY = {
         conversations: ["My progress", "Teammate’s progress"],
       },
     ],
+    guide: {
+      eyebrow: "HOW TO START",
+      title: "Use what was shared. Share what already works.",
+      body:
+        "The web is the fastest way in. Codex and Claude Code bring the Agent into work already in motion. Copy either instruction below.",
+      consumerLabel: "Use someone else’s Agent",
+      consumerTitle: "Open the link. Start with the task.",
+      consumerBody:
+        "Nothing to install on the web. To call the Agent from Codex or Claude Code, paste the ready-made instruction below.",
+      consumerSteps: [
+        "Web: open the share link and start the conversation.",
+        "Codex: copy the instruction below into your current task.",
+        "Follow up naturally; this conversation keeps its context.",
+      ],
+      consumerNote: "Using someone else’s Agent never requires a Runner.",
+      publisherLabel: "Publish your own Agent",
+      publisherTitle: "Share the session that already knows the work.",
+      publisherBody:
+        "Paste the instruction below into the Codex or Claude Code session you want to share. It handles setup checks and publishing.",
+      publisherSteps: [
+        "Return to the session where the useful work happened.",
+        "Copy the instruction below and add an Agent name.",
+        "Confirm, then receive an Agent ID and share link.",
+      ],
+      publisherNote:
+        "A Runner is checked only for publishing, and nothing is installed without your approval.",
+      promptLabel: "Paste into Codex / Claude Code",
+      copyForCodex: "Copy for Codex",
+      copied: "Copied",
+      installCommandLabel:
+        "Both paths share one installer; by default it adds only the Skill + MCP:",
+      agentPlaceholder: "<paste an Agent share link or Agent ID>",
+      consumerPrompt:
+        "Please use this Codex Sharing Agent:\n{agent}\n\nIf Codex Sharing is not installed yet, first run:\nnpx -y Equality-Machine/agent-as-a-service\n\nIf the client must restart after installation, tell me clearly. For this task, use the call instructions embedded in the share page when possible.\n\nUse this Agent to help me:\n<describe your task>",
+      publisherPrompt:
+        "Please publish the current session with Codex Sharing.\n\nIf Codex Sharing is not installed yet, first run:\nnpx -y Equality-Machine/agent-as-a-service\n\nCheck for a Runner before publishing. Install or configure one only when required, explain what will change, and ask for my approval first.\n\nPublish the current session as a locally run Agent named:\n<enter Agent name>\n\nReturn the Agent ID and share link when finished.",
+    },
     share: {
       eyebrow: "THIS AGENT IS READY",
       agentIdLabel: "Agent ID",
