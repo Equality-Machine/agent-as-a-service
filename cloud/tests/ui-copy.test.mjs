@@ -15,12 +15,31 @@ const flattenStrings = (value) => {
 test("public UI copy tells the Agent story in Chinese and English", () => {
   assert.equal(PUBLIC_UI_COPY.zh.home.agentIdLabel, "输入 Agent ID");
   assert.equal(PUBLIC_UI_COPY.en.home.agentIdLabel, "Enter Agent ID");
-  assert.match(PUBLIC_UI_COPY.zh.home.title, /找到 Agent/);
-  assert.match(PUBLIC_UI_COPY.en.home.title, /Find the Agent/);
+  assert.equal(PUBLIC_UI_COPY.zh.home.title, "不用重新交代。直接推进工作。");
+  assert.equal(PUBLIC_UI_COPY.en.home.title, "Skip the briefing. Start the work.");
+  assert.equal(
+    PUBLIC_UI_COPY.zh.home.storyTitle,
+    "好的协作，不该换个人就从头开始。",
+  );
+  assert.equal(
+    PUBLIC_UI_COPY.en.home.storyTitle,
+    "Great work should not restart with every handoff.",
+  );
   assert.equal(PUBLIC_UI_COPY.zh.story.length, 3);
   assert.equal(PUBLIC_UI_COPY.en.story.length, 3);
-  assert.match(PUBLIC_UI_COPY.zh.share.promptLabel, /想让它做什么/);
-  assert.match(PUBLIC_UI_COPY.en.share.promptLabel, /like it to do/);
+  assert.equal(PUBLIC_UI_COPY.zh.share.promptLabel, "这次想让它帮你完成什么？");
+  assert.equal(
+    PUBLIC_UI_COPY.en.share.promptLabel,
+    "What should this Agent help you finish?",
+  );
+  assert.equal(
+    PUBLIC_UI_COPY.zh.home.publisherCta,
+    "已经有一段成熟对话？把它发布成 Agent",
+  );
+  assert.equal(
+    PUBLIC_UI_COPY.en.home.publisherCta,
+    "Already have a great working session? Publish it as an Agent",
+  );
 });
 
 test("public-facing story copy avoids implementation jargon", () => {

@@ -1,8 +1,39 @@
 # Verification evidence
 
-Date: 2026-07-27, Asia/Shanghai
+Latest repository verification: 2026-07-28, Asia/Shanghai
 
-## Production deployment
+## Open-source repository refresh
+
+The repository, documentation, installer guidance, public web copy, Agent share
+copy, and contribution workflow were validated on the
+`agent/open-source-repository-refresh` branch.
+
+```text
+Implementation commit: a7d2a6d
+Pull request: https://github.com/Equality-Machine/agent-as-a-service/pull/1
+GitHub CI:
+  Runtime · Node 22: passed
+  Runtime · Node 24: passed
+  Repository health: passed
+  Control plane: passed
+Local root tests: 28 passed, 5 gated skipped, 0 failed
+Cloud tests: 10 passed, 0 failed
+```
+
+The local acceptance also passed the Vinext production build, ESLint,
+documentation links, required community files, npm package dry-run, and staged
+secret/path scan.
+
+Browser acceptance covered the Chinese and English home experience at 1280 px
+and verified the title, Agent ID entry, primary CTA, story, and publisher CTA.
+At 375 px, the document and key hero/form elements stayed within the viewport
+with no horizontal overflow.
+
+This branch is not itself a Sites deployment. The production evidence below
+describes the earlier deployed version until a new saved Sites version is
+published and exercised.
+
+## Historical production deployment — Version 5
 
 ```text
 URL: https://aaas-agent-service.b4yesc4t.chatgpt.site
@@ -84,8 +115,8 @@ old branch messages present after New conversation: no
 At a 390 x 844 viewport the document and hero widths were 390 px, the heading
 kept horizontal writing, and `scrollWidth` remained 390 px. Current screenshots:
 
-- `output/playwright/aaas-production-v4-desktop.png`
-- `output/playwright/aaas-production-v4-mobile.png`
+- `assets/screenshots/legacy/aaas-production-v4-desktop.png`
+- `assets/screenshots/legacy/aaas-production-v4-mobile.png`
 
 ## Real current-Session publication
 

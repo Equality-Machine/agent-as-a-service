@@ -1,0 +1,92 @@
+name: Product or feature proposal
+description: Propose a better outcome for AaaS users, operators, or contributors.
+title: "[Idea]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Great proposals start with the user and the blocked outcome—not the implementation.
+
+  - type: textarea
+    id: user
+    attributes:
+      label: Who is this for?
+      description: Describe the person, role, or team and the situation they are in.
+      placeholder: A consumer who receives an Agent link inside…
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are they unable to do today?
+      description: Explain the friction, cost, risk, or workaround.
+      placeholder: Today they must…
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What outcome should become possible?
+      description: Describe success without prescribing a specific implementation.
+      placeholder: They should be able to…
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Ideal workflow
+      description: Walk through the smallest useful end-to-end experience.
+      placeholder: |
+        1. The user…
+        2. AaaS…
+        3. The user sees…
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround
+      placeholder: Right now we…
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested approach
+      description: Optional. Share a possible design, API, or implementation if you have one.
+
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Privacy, security, and isolation impact
+      description: Consider source sessions, consumer conversations, Runner trust, secrets, files, network, identity, and external writes.
+      placeholder: This would require…
+    validations:
+      required: true
+
+  - type: textarea
+    id: measure
+    attributes:
+      label: How would we know it works?
+      description: Give an observable acceptance scenario or metric.
+      placeholder: A test user can…
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues, discussions, and the roadmap.
+          required: true
+        - label: I described a user outcome before an implementation.
+          required: true
+        - label: I did not include secrets or private session data.
+          required: true

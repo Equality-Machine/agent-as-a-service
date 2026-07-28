@@ -14,34 +14,22 @@
 ## Visual grounding
 
 - Interaction narrative reference: `https://cora.computer`
-- Reference captures:
-  - `/tmp/aaas-cora-reference/01-hero.png`
-  - `/tmp/aaas-cora-reference/02-screening-story.png`
-  - `/tmp/aaas-cora-reference/04-drafting-story.png`
-  - `/tmp/aaas-cora-reference/06-brief-story.png`
-- Selected visual target:
-  - `/Users/b4yesc4t/.codex/generated_images/019f950a-ec23-7c30-b11a-7e7c65699617/call_ddeG8v7qaVsMmt1m2Smv4Fgi.png`
-- Implemented image asset:
-  - `cloud/public/aaas-cinematic-light.jpg`
-- Same-canvas comparisons:
-  - `/tmp/aaas-redesign-qa/12-reference-vs-aaas.png`
-  - `/tmp/aaas-redesign-qa/13-visual-target-vs-share.png`
+- The reference was used for scroll-based storytelling and transition rhythm,
+  not as a visual style to copy.
+- Implemented image asset: `../cloud/public/aaas-cinematic-light.jpg`
+- The selected visual target, reference captures, and same-canvas comparisons
+  were inspected during implementation but are not committed as build inputs.
 
 ## Implementation screenshots
 
+- Home, desktop, English, 1440 × 900:
+  [aaas-home-en.png](assets/screenshots/aaas-home-en.png)
 - Home, desktop, Chinese, 1440 × 900:
-  - `/tmp/aaas-redesign-qa/15-home-1440x900-zh.png`
-- Story sequence:
-  - `/tmp/aaas-redesign-qa/02-story-context.png`
-  - `/tmp/aaas-redesign-qa/04-story-share.png`
-  - `/tmp/aaas-redesign-qa/06-story-conversations.png`
-- Shared Agent, desktop:
-  - `/tmp/aaas-redesign-qa/07-share-desktop-top.png`
-- Home and shared Agent, mobile, 375 × 812:
-  - `/tmp/aaas-redesign-qa/09-home-mobile-375.png`
-  - `/tmp/aaas-redesign-qa/08-share-mobile-375-top.png`
-- Landscape mobile, 812 × 375:
-  - `/tmp/aaas-redesign-qa/11-home-landscape-812x375.png`
+  [aaas-home-zh.png](assets/screenshots/aaas-home-zh.png)
+- Historical desktop, mobile, and live-Agent captures are archived under
+  [`assets/screenshots/legacy/`](assets/screenshots/legacy/).
+- Story, shared-Agent, mobile, landscape, and reduced-motion states were
+  visually inspected in the in-app browser during acceptance.
 
 ## Viewports and layout
 

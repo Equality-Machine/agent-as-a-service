@@ -1,221 +1,211 @@
-# Agent as a Service
+<div align="center">
 
-把当前 Codex / Claude Code 对话发布成一个可分享的 Agent。发布者保留私有、
-不可变的 Source Session；每位调用者都创建自己的 Conversation Fork。
+# AaaS — Agent as a Service
 
-生产控制面：
-[aaas-agent-service.b4yesc4t.chatgpt.site](https://aaas-agent-service.b4yesc4t.chatgpt.site)
+**Turn a working session into an Agent anyone can use.**
 
-## 一条命令安装
+Publish a Codex or Claude Code session once. Teammates, clients, or their own
+Agents can continue from what it already learned—without seeing or changing
+your original conversation.
 
-只调用别人发布的 Agent 时，安装默认的 `consumer` 角色：
+[![CI](https://github.com/Equality-Machine/agent-as-a-service/actions/workflows/ci.yml/badge.svg)](https://github.com/Equality-Machine/agent-as-a-service/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/github/license/Equality-Machine/agent-as-a-service)](LICENSE)
+[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](package.json)
+[![Public preview](https://img.shields.io/badge/status-public%20preview-F08A5D)](https://aaas-agent-service.b4yesc4t.chatgpt.site)
+
+[Try the web app](https://aaas-agent-service.b4yesc4t.chatgpt.site)
+·
+[Installation](docs/INSTALL.md)
+·
+[Architecture](docs/ARCHITECTURE.md)
+·
+[Contributing](CONTRIBUTING.md)
+·
+[中文](README.zh-CN.md)
+
+</div>
+
+![AaaS web experience](docs/assets/screenshots/aaas-home-en.png)
+
+## Why AaaS
+
+The hard part of a useful Agent is rarely the first prompt. It is the context
+earned over dozens of turns: what matters, what has been tried, what good looks
+like, and how the work gets done. AaaS makes that head start reusable.
+
+| Start with context | Share anywhere | Keep conversations private |
+| --- | --- | --- |
+| Publish what a Codex or Claude Code session has already learned. | Give someone a link or Agent ID for the web, Codex, Claude Code, MCP, or HTTP. | Every use starts an independent conversation. Consumer messages never write back to the publisher's source session. |
+
+## A different starting point
+
+AaaS is not another prompt builder. It starts from a session where the work has
+already happened and turns that accumulated understanding into a reusable entry
+point.
+
+| What you share | What the next person receives |
+| --- | --- |
+| Prompt or Agent configuration | Instructions for a new conversation |
+| Shared chat | A readable snapshot of the past |
+| Workflow export | A definition to import and reconnect |
+| **AaaS Agent** | **A private continuation of proven working context** |
+
+## One link, one head start
+
+1. A researcher spends a long Codex session testing assumptions and refining a
+   method.
+2. They publish it as a **Market Research Agent** and share the link.
+3. A product lead opens it and asks the actual next question:
+
+   > Turn the evidence into a launch brief for enterprise buyers.
+
+4. The product lead gets a private, continuous conversation. The researcher's
+   original session stays unchanged.
+
+The same pattern works for project handoffs, reusable coding and research
+partners, and customer-facing experts: preserve the hard-won understanding,
+then let the next person start with the outcome.
+
+## Quick start
+
+### Use a shared Agent
+
+The fastest path needs no installation:
+
+1. Open the [web app](https://aaas-agent-service.b4yesc4t.chatgpt.site).
+2. Paste an Agent ID such as `agt_...`, or open a shared Agent link.
+3. Start working.
+
+To use shared Agents inside Codex or Claude Code:
 
 ```bash
 npx -y Equality-Machine/agent-as-a-service
 ```
 
-它只安装 Skill + MCP，自动检测 Codex / Claude Code，**不会创建 Runner，也不会
-启动后台服务**。安装完成后，Skill 和 MCP 运行时会保存在稳定目录
-`~/.local/share/efflora-aaas`，不依赖可被清理的 `npx` 缓存。
-安装器会实际运行客户端版本探针；如果 PATH 中残留了损坏的 Codex npm 包装器，
-macOS 会自动回退到 Codex 桌面应用自带的可用二进制。
+This installs the AaaS Skill and MCP integration. It does **not** install a
+Runner or start a background service. Consumers do not need one.
 
-`npx install` 并不是 npm 的标准语法；这里使用 npm 支持的 GitHub 仓库简写，
-直接运行仓库内的 `aaas` 可执行入口，不依赖尚未发布的 npm Registry 包。
-
-如果新机器尚未安装 Node.js / `npx`，再使用兼容安装器。它会从 nodejs.org
-下载并校验独立的 Node.js 22 运行时；需要系统已安装 Git：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Equality-Machine/agent-as-a-service/main/install.sh | bash
-```
-
-安装后重启客户端，直接说：
+After restarting the client, ask naturally:
 
 ```text
-使用 Agent agt_...，问它：请解释这个方案的核心隔离模型。
+Use Agent agt_... and ask it to turn this idea into a three-step plan.
 ```
 
-调用别人发布的 Agent 不需要 Runner。第一轮会创建该用户自己的
-`conversationId`，后续问题只延续这条 Fork，不会写回发布者 Session。
+### Publish your own Agent
 
-## 第一次发布时按需安装 Runner
-
-`consumer` 以后也可以直接说：
-
-```text
-把当前对话发布成 Agent，名字叫「研究助手」，在我的本地运行。
-```
-
-Skill 会先调用只读的 `runner_status`。如果本机还没有 Runner，它会解释即将
-安装的常驻后台服务并请求确认；确认后调用 `install_local_runner`，在 macOS
-安装 LaunchAgent、在 Linux 安装 systemd service。Runner 安装成功后，Skill
-再展示公开名称、描述、Provider 和运行模式，请你确认发布。
-
-如果一开始就知道这台机器要发布 Agent，也可以一次完成：
+If this machine will publish sessions, install the publisher role:
 
 ```bash
 npx -y Equality-Machine/agent-as-a-service publisher
 ```
 
-发布完成后返回：
+Then, from the Codex or Claude Code session you want to share:
 
 ```text
-Agent ID: agt_...
-Web URL: https://aaas-agent-service.b4yesc4t.chatgpt.site/a/agt_...
+Publish this conversation as an Agent named "Research Partner".
+Run it on my local machine.
 ```
 
-这个 URL 本身就是可消费的 Agent 链接。新用户可以直接在网页打开，也可以把
-整条链接粘贴给 Codex 或 Claude Code。分享页会显式展示消费者安装步骤，并在
-HTML、`<link rel="alternate">` 和
-`/api/v1/agents/{agentId}/manifest` 中提供机器可读的
-`application/aaas+json` 清单。Agent 会先检查 AaaS MCP；缺失时征得用户同意，
-再运行 `npx -y Equality-Machine/agent-as-a-service` 安装 Skill + MCP。消费
-别人的 Agent 永远不需要 Runner；安装后重启客户端可使用 MCP，当前任务也能按
-清单中的 HTTP fallback 立即调用。
+A local publisher uses a persistent Runner on the publisher's machine. The
+Skill explains that system change and asks for confirmation before installing
+it. Publishing returns an Agent ID and a shareable link.
 
-Codex 发布时使用 `CODEX_THREAD_ID` 精确定位当前任务；Claude Code 会选择当前
-项目的 Session。若无法唯一定位，Skill 必须让用户明确提供 Session ID，不会
-静默发布另一条对话。
+See [Installation and roles](docs/INSTALL.md) for the curl fallback, server
+Runner setup, supported overrides, and manual configuration.
 
-Claude Runner 可以使用现有 Claude 登录，也可以通过兼容 Anthropic Messages
-协议的模型服务运行。以百炼按量模式为例，应由进程 Secret 注入以下变量，不要
-把 Key 写入仓库、镜像或 Skill：
+## How it works
 
-```bash
-export ANTHROPIC_BASE_URL=https://dashscope.aliyuncs.com/apps/anthropic
-export ANTHROPIC_AUTH_TOKEN="$DASHSCOPE_API_KEY"
-export ANTHROPIC_MODEL=qwen3.7-max
+```mermaid
+flowchart LR
+  S["Private source session"] --> V["Immutable Agent version"]
+  V --> A["Stable Agent ID"]
+  A --> C1["Consumer conversation A"]
+  A --> C2["Consumer conversation B"]
+  C1 --> F1["Provider-native fork A"]
+  C2 --> F2["Provider-native fork B"]
 ```
 
-本项目已用临时环境完成真实 Claude 历史的 Fork、Continuation 和来源摘要不变
-验收；详见验证文档。
+- The **source session** stays private on the publisher or paired Runner.
+- An **Agent version** freezes a completed point in that session.
+- The **Agent ID** is the stable identity people share.
+- Every **conversation** receives its own provider-native fork and can continue
+  independently.
 
-网页用户无需安装任何内容，可以直接打开分享链接或把 Agent ID 粘贴到
-[生产网页](https://aaas-agent-service.b4yesc4t.chatgpt.site)。Agent 回复按
-GitHub Flavored Markdown 渲染，支持标题、列表、引用、表格、代码、链接以及
-HTTP(S)/相对路径图片；不安全的 `data:` 图片不会加载。
+Local mode keeps source material and provider login on the publisher's machine.
+Cloud mode transfers an authenticated, AES-256-GCM encrypted source capsule to
+a paired server Runner. In both modes, the control plane coordinates public
+metadata, conversations, messages, and job leases.
 
-## 两种执行模式
+Read the [architecture guide](docs/ARCHITECTURE.md) for the object model,
+Runner topology, isolation boundary, job lifecycle, and current trust model.
 
-### `local`
+## Interfaces
 
-- 云端只保存 Agent 元数据、Conversation、消息、Job/Lease 和 opaque
-  `sourceHandle`。
-- Source Snapshot、本地文件、Provider 登录态都留在发布者机器。
-- Runner 只建立出站 HTTPS 连接，不需要路由器端口映射或公网入站端口。
-- 发布者机器离线时，Agent 暂时不可用。
-- 发布工具只冻结并登记 AgentVersion，绝不在发布会话里临时启动 Runner；只有
-  LaunchAgent / systemd / 容器中的常驻 Runner 可以领取 Job。
+| Interface | Best for |
+| --- | --- |
+| [Web](https://aaas-agent-service.b4yesc4t.chatgpt.site) | Using an Agent from any browser |
+| Skill + MCP | Natural use and publishing from Codex or Claude Code |
+| HTTP API | Product integrations and automation |
+| Local Runner | Agents that depend on private files, local repos, or desktop credentials |
+| Cloud Runner | Always-on execution on a controlled server |
 
-### `cloud`
-
-- 先在服务器安装并登录 Codex 或 Claude Code。然后一条命令安装远程 Runner：
-
-```bash
-npx -y Equality-Machine/agent-as-a-service runner
-```
-
-- 命令会输出一次性的 `runnerId` 和 `runnerToken`。Token 只应进入授权发布端
-  或 Secret 管理器，不应发到聊天、日志或仓库。
-- 也可以从源码手动创建：
-
-```bash
-AAAS_DATA_DIR=/var/lib/aaas npm run cloud:enroll
-AAAS_DATA_DIR=/var/lib/aaas \
-AAAS_CLOUD_URL=https://aaas-agent-service.b4yesc4t.chatgpt.site \
-  npm run cloud:runner
-```
-
-- 将输出的 `runnerId` 和 `runnerToken` 安全配置到发布端的
-  `AAAS_CLOUD_RUNNER_ID` / `AAAS_CLOUD_RUNNER_TOKEN`。
-- 用户确认 `cloud` 模式后，发布端冻结 Session、压缩并用 AES-256-GCM 加密
-  Source Capsule。控制面把密文放入 R2；目标 Runner 首次领 Job 时下载、验证
-  GCM 标签和 AgentVersion 摘要，再在服务器创建 Provider 原生 Fork。
-- Runner token 经 TLS 发送并只以 SHA-256 摘要持久化；当前安全模型信任控制面
-  运行时。若需要控制面对 Capsule 零信任，应升级为 Runner 公钥包裹数据密钥。
-
-Docker 入口默认运行 cloud Runner：
-
-```bash
-docker build -t aaas-runner .
-docker run --rm -v aaas-data:/data \
-  aaas-runner node src/enroll-runner-cli.mjs --data-dir /data
-
-docker run -d --name aaas-runner --restart unless-stopped \
-  -e AAAS_CLOUD_URL=https://aaas-agent-service.b4yesc4t.chatgpt.site \
-  -v aaas-data:/data \
-  -v /srv/agent-workspace:/workspace \
-  aaas-runner
-```
-
-把 Provider 凭据放入服务器的 Secret 管理器或只读挂载，不要烘焙进镜像。
-
-## 对象模型
+The MCP surface includes:
 
 ```text
-Source Session (private, mutable publisher history)
-  -> Agent
-       -> AgentVersion (immutable publication boundary)
-            -> Conversation A -> provider fork A -> turn 1 -> turn 2
-            -> Conversation B -> provider fork B -> turn 1
+runner_status
+install_local_runner
+publish_current_agent
+find_agent
+agent_start
+agent_continue
+agent_end
 ```
 
-- `Agent` 是可分享身份；不等于 Session。
-- `AgentVersion` 是某次发布的冻结能力快照。
-- `Conversation` 是某位调用者的一次连续使用。
-- Provider 的 child session ID 永不返回给消费者。
-- Codex Fork 后会清掉复制来的 active Goal，避免自动继续执行发布者任务。
-- Codex Runner 使用独立 `CODEX_HOME`，只复用登录凭据，不继承发布者的
-  `config.toml`、MCP、Apps、插件、Hooks、Skills 或记忆配置，避免递归加载
-  AaaS 本身。
-- 常驻 Runner 在每次领取 Job 后重新加载 Source Snapshot，因此无需重启即可
-  执行刚发布的 AgentVersion。
+Consumers use only the Agent tools. Runner checks and installation happen only
+when a user explicitly asks to publish locally.
 
-## Job 状态与取消
+## Project status
 
-控制面把 `queued`、`claimed`、`loading_source`、`starting_runtime`、
-`running`、`finalizing` 和终态分开返回。Runner 每 10 秒续期一次 45 秒租约；
-租约丢失的任务会重新排队，取消中的任务会终止 Provider 子进程并进入
-`cancelled`。网页会显示当前阶段和 Runner 在线状态，不再把运行时超时误报为
-Runner 离线。Provider 默认运行时上限为 5 分钟，可用
-`AAAS_RUNTIME_TIMEOUT_MS` 调整；调用端等待上限更长，因此能收到准确的运行时
-超时错误。
+AaaS is an **open public preview**. The core fork-safe lifecycle, Codex and
+Claude Code runtimes, local and cloud Runners, web client, MCP surface, job
+leases, cancellation, and encrypted cloud capsules are implemented and covered
+by automated and real-provider acceptance tests.
 
-## MCP 工具
+The public control plane does not yet include accounts, quotas, billing, or a
+complete multi-tenant abuse-prevention layer. Write-enabled tools also require
+per-conversation workspace, identity, secret, and approval isolation before
+they are safe for untrusted public traffic.
 
-- `runner_status`
-- `install_local_runner`
-- `publish_current_agent`
-- `find_agent`
-- `agent_start`
-- `agent_continue`
-- `agent_end`
+See the [roadmap](docs/ROADMAP.md), [verification evidence](docs/VERIFICATION.md),
+and [security policy](SECURITY.md) before production adoption.
 
-Skill 位于 [`skills/aaas/SKILL.md`](skills/aaas/SKILL.md)，同一份安装到
-`~/.codex/skills/aaas` 和 `~/.claude/skills/aaas`。
+## Repository guide
 
-## 验证
+| Path | Purpose |
+| --- | --- |
+| `src/` | Control client, publisher, Runner, runtime, MCP, and local service code |
+| `cloud/` | Hosted control plane, web app, D1/R2 integration, and cloud tests |
+| `skills/aaas/` | Installable Codex and Claude Code Skill |
+| `tests/` | Unit, contract, distribution, and gated real-runtime acceptance |
+| `docs/` | Architecture, installation, development, roadmap, and verification |
 
-```bash
-npm test
-cd cloud && npm test
-```
+Start with the [documentation index](docs/README.md) or the
+[development guide](docs/DEVELOPMENT.md).
 
-自动测试覆盖 Codex / Claude Fork 合约、当前 Turn 发布边界、不可变摘要、独立
-Conversation、MCP 生命周期、Job/Lease、本地 Runner、加密 Cloud Capsule 和
-服务器首次导入。真实生产 E2E 证据见
-[`docs/VERIFICATION.md`](docs/VERIFICATION.md)。
+## Contributing
 
-## 安全边界
+Issues, design discussions, documentation fixes, runtime adapters, and test
+improvements are welcome. Please read:
 
-- Session 路径和原始 transcript 不进入 D1。
-- Snapshot、runner state 和 token 文件使用 `0600`。
-- 默认 Codex 是 read-only + no-network；Claude 默认只允许
-  `Read,Grep,Glob`。
-- Codex 的消费分支运行在隔离配置目录中；Publisher MCP 不具备 Job 消费职责。
-- 文件写入、浏览器、邮件、数据库等副作用尚未按 Conversation 自动隔离；若
-  开放这些工具，必须为每个 Conversation 增加 worktree/container、独立凭据
-  与审批策略。
-- 公共控制面当前没有账号、配额、计费或反滥用层，适合功能验收，不适合直接
-  承载不受信任的大规模流量。
+- [Contributing guide](CONTRIBUTING.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Support guide](SUPPORT.md)
+- [Governance](GOVERNANCE.md)
+
+For vulnerabilities, use GitHub's private security-advisory flow described in
+[SECURITY.md](SECURITY.md). Never post API keys, Runner tokens, private session
+files, transcripts, or local paths in a public issue.
+
+## License
+
+[MIT](LICENSE) © 2026 Efflora contributors.

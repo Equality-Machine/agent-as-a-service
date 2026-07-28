@@ -14,6 +14,7 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
 
   assert.match(page, /<AgentConsole /);
   assert.match(consoleSource, /PUBLIC_UI_COPY/);
+  assert.match(consoleSource, /agent-as-a-service#publish-your-own-agent/);
   assert.match(consoleSource, /aaas-language/);
   assert.match(consoleSource, /aria-live/);
   assert.match(consoleSource, /\/api\/v1\/agents\//);
@@ -22,15 +23,25 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
   assert.match(consoleSource, /queuedOffline/);
   assert.match(consoleSource, /loading_source/);
   assert.match(consoleSource, /starting_runtime/);
-  assert.match(consoleSource, /Agent 正在处理/);
+  assert.match(consoleSource, /正在处理你的任务/);
   assert.match(consoleSource, /MessageMarkdown/);
   assert.match(storySource, /requestAnimationFrame/);
+  assert.match(storySource, /IntersectionObserver/);
   assert.match(storySource, /prefers-reduced-motion/);
-  assert.match(storySource, /data-phase/);
+  assert.match(storySource, /data-story-act/);
+  assert.match(storySource, /story-product-stage/);
+  assert.match(storySource, /story-conversation/);
+  assert.match(storySource, /story-destinations/);
+  assert.match(storySource, /story-branches/);
+  assert.match(storySource, /story-trust/);
+  assert.doesNotMatch(storySource, /WebGLRenderer|ShaderMaterial|story-canvas|spring\.velocity/);
+  assert.doesNotMatch(storySource, /ContextVisual|ShareVisual|ConversationVisual/);
   assert.match(layout, /AaaS — Agent as a Service/);
+  assert.match(layout, /Skip the briefing\. Start with an Agent/);
   assert.match(css, /--accent:\s*#f26a2e/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(packageJson, /@phosphor-icons\/react/);
+  assert.doesNotMatch(packageJson, /"three"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await assert.rejects(
     access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)),
@@ -79,6 +90,7 @@ test("canonical and legacy Agent links render the self-describing handoff", asyn
   assert.match(home, /searchParams/);
   assert.match(home, /initialAgentId/);
   assert.match(agentPage, /generateMetadata/);
+  assert.match(agentPage, /start with the actual task/);
   assert.match(agentPage, /application\/aaas\+json/);
   assert.match(agentPage, /initialAgentId=\{agentId\}/);
   assert.match(consoleSource, /AgentLinkInstructions/);

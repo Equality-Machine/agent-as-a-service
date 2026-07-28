@@ -1,9 +1,20 @@
 {
   "name": "@efflora/aaas",
   "version": "0.2.1",
-  "description": "Publish Codex and Claude sessions as fork-safe Agent services.",
+  "description": "Turn a Codex or Claude Code session into an Agent anyone can use, with a private conversation for every recipient.",
   "private": false,
   "type": "module",
+  "license": "MIT",
+  "author": "Efflora contributors",
+  "keywords": [
+    "agent",
+    "agent-as-a-service",
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "mcp",
+    "session-fork"
+  ],
   "bin": {
     "aaas": "scripts/aaas.mjs"
   },
@@ -19,7 +30,10 @@
     "type": "git",
     "url": "git+https://github.com/Equality-Machine/agent-as-a-service.git"
   },
-  "homepage": "https://github.com/Equality-Machine/agent-as-a-service#readme",
+  "homepage": "https://aaas-agent-service.b4yesc4t.chatgpt.site",
+  "bugs": {
+    "url": "https://github.com/Equality-Machine/agent-as-a-service/issues"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -35,10 +49,14 @@
     "publish": "node src/publish-cli.mjs",
     "install:clients": "node scripts/install.mjs",
     "install:runner": "node scripts/install-runner.mjs",
-    "test": "node --test",
-    "test:e2e": "node --test tests/e2e/*.test.mjs"
+    "test": "node --test tests/*.test.mjs tests/e2e/*.test.mjs",
+    "test:e2e": "node --test tests/e2e/*.test.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
+    "package:check": "npm pack --dry-run --json",
+    "check": "npm test && npm run docs:check && npm run package:check && npm --prefix cloud test && npm --prefix cloud run lint"
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "packageManager": "npm@10.9.4"
 }
