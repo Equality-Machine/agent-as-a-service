@@ -3,11 +3,16 @@
 import {
   ArrowDown,
   ArrowRight,
+  Browser,
   CheckCircle,
   Copy,
+  GithubLogo,
   PaperPlaneTilt,
   Plus,
   SpinnerGap,
+  Star,
+  TerminalWindow,
+  UploadSimple,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,7 +27,10 @@ import {
 
 import { MessageMarkdown } from "./MessageMarkdown.mjs";
 import { NarrativeStory } from "./NarrativeStory";
-import { AgentLinkInstructions } from "./agent-link.mjs";
+import {
+  AAAS_INSTALL_COMMAND,
+  AgentLinkInstructions,
+} from "./agent-link.mjs";
 import { PUBLIC_UI_COPY, type PublicLanguage } from "./ui-copy.mjs";
 
 type Agent = {
@@ -176,6 +184,17 @@ function SiteNav({
               {copy.nav.useAgent}
             </a>
           )}
+          <a
+            className="github-star"
+            href="https://github.com/Equality-Machine/agent-as-a-service"
+            target="_blank"
+            rel="noreferrer"
+            aria-label={copy.nav.githubStar}
+          >
+            <GithubLogo weight="fill" aria-hidden="true" />
+            <span>{copy.nav.githubStar}</span>
+            <Star weight="fill" aria-hidden="true" />
+          </a>
           <LanguageToggle language={language} onChange={onLanguageChange} />
         </div>
       </header>
@@ -251,6 +270,120 @@ function AgentLookup({
   );
 }
 
+function UsageGuide({
+  language,
+  agentId,
+}: {
+  language: PublicLanguage;
+  agentId: string;
+}) {
+  const copy = PUBLIC_UI_COPY[language].guide;
+  const [copiedPrompt, setCopiedPrompt] = useState<"consumer" | "publisher" | null>(
+    null,
+  );
+  const agentTarget = agentId.trim() || copy.agentPlaceholder;
+  const consumerPrompt = copy.consumerPrompt.replace("{agent}", agentTarget);
+  const publisherPrompt = copy.publisherPrompt;
+
+  async function copyPrompt(
+    kind: "consumer" | "publisher",
+    prompt: string,
+  ) {
+    await navigator.clipboard.writeText(prompt);
+    setCopiedPrompt(kind);
+    window.setTimeout(() => setCopiedPrompt(null), 1800);
+  }
+
+  const paths = [
+    {
+      kind: "consumer" as const,
+      icon: <Browser weight="duotone" aria-hidden="true" />,
+      label: copy.consumerLabel,
+      title: copy.consumerTitle,
+      body: copy.consumerBody,
+      steps: copy.consumerSteps,
+      prompt: consumerPrompt,
+      note: copy.consumerNote,
+    },
+    {
+      kind: "publisher" as const,
+      icon: <UploadSimple weight="duotone" aria-hidden="true" />,
+      label: copy.publisherLabel,
+      title: copy.publisherTitle,
+      body: copy.publisherBody,
+      steps: copy.publisherSteps,
+      prompt: publisherPrompt,
+      note: copy.publisherNote,
+    },
+  ];
+
+  return (
+    <section className="usage-guide" aria-labelledby="usage-guide-title">
+      <header className="usage-guide-heading">
+        <span>{copy.eyebrow}</span>
+        <h2 id="usage-guide-title">{copy.title}</h2>
+        <p>{copy.body}</p>
+      </header>
+
+      <div className="usage-paths">
+        {paths.map((path, index) => (
+          <article className={`usage-path usage-path-${path.kind}`} key={path.kind}>
+            <header>
+              <div className="usage-path-icon">{path.icon}</div>
+              <div>
+                <span>
+                  {String(index + 1).padStart(2, "0")} · {path.label}
+                </span>
+                <h3>{path.title}</h3>
+              </div>
+            </header>
+            <p className="usage-path-body">{path.body}</p>
+            <ol>
+              {path.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            <div className="codex-prompt">
+              <div className="codex-prompt-bar">
+                <span>
+                  <TerminalWindow weight="fill" aria-hidden="true" />
+                  {copy.promptLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void copyPrompt(path.kind, path.prompt)}
+                  aria-label={`${copy.copyForCodex}: ${path.title}`}
+                >
+                  {copiedPrompt === path.kind ? (
+                    <CheckCircle weight="fill" aria-hidden="true" />
+                  ) : (
+                    <Copy aria-hidden="true" />
+                  )}
+                  <span>
+                    {copiedPrompt === path.kind
+                      ? copy.copied
+                      : copy.copyForCodex}
+                  </span>
+                </button>
+              </div>
+              <pre>{path.prompt}</pre>
+            </div>
+            <footer>
+              <CheckCircle weight="fill" aria-hidden="true" />
+              <span>{path.note}</span>
+            </footer>
+          </article>
+        ))}
+      </div>
+
+      <p className="usage-install-note">
+        <span>{copy.installCommandLabel}</span>
+        <code>{AAAS_INSTALL_COMMAND}</code>
+      </p>
+    </section>
+  );
+}
+
 function HomeExperience({
   language,
   agentId,
@@ -306,6 +439,8 @@ function HomeExperience({
       </section>
 
       <NarrativeStory language={language} />
+
+      <UsageGuide language={language} agentId={agentId} />
 
       <section className="closing-cta" aria-labelledby="closing-title">
         <div>

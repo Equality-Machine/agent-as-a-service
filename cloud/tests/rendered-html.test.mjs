@@ -40,6 +40,11 @@ test("cloud app exposes an Agent-ID-first bilingual story and console", async ()
   assert.match(layout, /Share the session\. Continue the work\./);
   assert.match(consoleSource, /Codex Sharing home/);
   assert.match(consoleSource, /codex-sharing-mark\.png/);
+  assert.match(consoleSource, /function UsageGuide/);
+  assert.match(consoleSource, /AAAS_INSTALL_COMMAND/);
+  assert.match(consoleSource, /copyPrompt/);
+  assert.match(consoleSource, /github\.com\/Equality-Machine\/agent-as-a-service/);
+  assert.match(consoleSource, /github-star/);
   assert.match(storySource, /Codex Sharing/);
   assert.match(css, /--accent:\s*#f26a2e/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
